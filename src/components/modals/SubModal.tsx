@@ -78,7 +78,8 @@ export default function SubModal({ isOpen, onClose }: Props) {
                     window.location.reload()
                 }, 2000)
             } else if (!silent) {
-                setMpError('Pagamento ainda não detectado. Se já pagou, aguarde alguns segundos...')
+                const debugInfo = data?.debug_url ? ` [ref: ${data.debug_url.split('external_reference=')[1]?.substring(0, 8) || '?'}]` : ''
+                setMpError(`Pagamento ainda não detectado (status: ${data?.status || 'unknown'})${debugInfo}. Aguarde alguns segundos...`)
             }
         } catch (err: any) {
             console.error('Status check error:', err)

@@ -64,16 +64,31 @@ DECLARE
   found_pref_id text;
   found_payment_id text;
 BEGIN
-  -- Build search URL based on available data
-  IF (payload->>'preference_id' IS NOT NULL) THEN
-    search_url := 'https://api.mercadopago.com/v1/payments/search?preference_id=' || (payload->>'preference_id');
-  ELSIF (payload->>'purchase_id' IS NOT NULL) THEN
-    search_url := 'https://api.mercadopago.com/v1/payments/search?external_reference=' || (payload->>'purchase_id');
+  -- ALWAYS search by external_reference (purchase_id) as primary method
+  -- The Mercado Pago API does NOT support search by preference_id
+  IF (payload->>'purchase_id' IS NOT NULL) THEN
+    search_url := 'https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&external_reference=' || (payload->>'purchase_id');
+  ELSIF (payload->>'preference_id' IS NOT NULL) THEN
+    -- Fallback: try to find purchase_id from our database using the preference_id
+    DECLARE
+      db_purchase_id text;
+    BEGIN
+      SELECT id::text INTO db_purchase_id 
+      FROM purchases 
+      WHERE mp_preference_id = (payload->>'preference_id') 
+      LIMIT 1;
+      
+      IF db_purchase_id IS NOT NULL THEN
+        search_url := 'https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&external_reference=' || db_purchase_id;
+      ELSE
+        RETURN jsonb_build_object('status', 'error', 'message', 'No purchase found for this preference_id');
+      END IF;
+    END;
   ELSE
     RETURN jsonb_build_object('status', 'error', 'message', 'No valid ID provided');
   END IF;
 
-  -- Use http() with http_request type for header support
+  -- Call Mercado Pago API
   SELECT * INTO resp FROM http((
     'GET',
     search_url,
@@ -86,12 +101,16 @@ BEGIN
 
   -- Check if we got results
   IF (payment_data->'results' IS NULL OR jsonb_array_length(payment_data->'results') = 0) THEN
-    RETURN jsonb_build_object('status', 'pending');
+    RETURN jsonb_build_object(
+      'status', 'pending',
+      'debug_url', search_url,
+      'debug_total', payment_data->>'total'
+    );
   END IF;
 
   -- Check if the first result is approved
   IF (payment_data->'results'->0->>'status' = 'approved') THEN
-    found_pref_id := COALESCE(payload->>'preference_id', payment_data->'results'->0->>'preference_id');
+    found_pref_id := payload->>'preference_id';
     found_payment_id := payment_data->'results'->0->>'id';
 
     -- Confirm purchases by preference_id
@@ -101,7 +120,7 @@ BEGIN
       WHERE mp_preference_id = found_pref_id;
     END IF;
 
-    -- Also confirm by external_reference (purchase_id) as fallback
+    -- Also confirm by purchase_id as fallback
     IF (payload->>'purchase_id' IS NOT NULL) THEN
       UPDATE purchases
       SET status = 'confirmed', mp_payment_id = found_payment_id
@@ -111,12 +130,12 @@ BEGIN
     -- Auto-activate VIP subscription if applicable
     IF EXISTS (
       SELECT 1 FROM purchases
-      WHERE mp_preference_id = found_pref_id
+      WHERE (mp_preference_id = found_pref_id OR id = (payload->>'purchase_id')::uuid)
       AND prompt_id = '00000000-0000-0000-0000-000000000001'
       AND status = 'confirmed'
     ) THEN
       PERFORM public.activate_subscription(
-        (SELECT user_id FROM purchases WHERE mp_preference_id = found_pref_id LIMIT 1),
+        (SELECT user_id FROM purchases WHERE (mp_preference_id = found_pref_id OR id = (payload->>'purchase_id')::uuid) LIMIT 1),
         found_payment_id,
         30
       );
@@ -125,7 +144,11 @@ BEGIN
     RETURN jsonb_build_object('status', 'approved', 'id', found_payment_id);
   END IF;
 
-  -- Payment exists but not yet approved
-  RETURN jsonb_build_object('status', payment_data->'results'->0->>'status');
+  -- Payment exists but not yet approved - return current status with debug info
+  RETURN jsonb_build_object(
+    'status', payment_data->'results'->0->>'status',
+    'debug_count', jsonb_array_length(payment_data->'results'),
+    'debug_url', search_url
+  );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
