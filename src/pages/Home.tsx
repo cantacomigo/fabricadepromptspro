@@ -9,7 +9,7 @@ import PromptCard from '../components/gallery/PromptCard'
 import UnlockModal from '../components/modals/UnlockModal'
 import PixPaymentModal from '../components/modals/PixPaymentModal'
 import PromptRevealModal from '../components/modals/PromptRevealModal'
-import SubscriptionModal from '../components/modals/SubscriptionModal'
+import SubModal from '../components/modals/SubModal.tsx'
 import ImageLightbox from '../components/modals/ImageLightbox'
 import CartDrawer from '../components/cart/CartDrawer'
 import type { Prompt } from '../lib/data'
@@ -436,7 +436,7 @@ export default function Home() {
             </div>
 
             {/* Modals */}
-            <SubscriptionModal
+            <SubModal
                 isOpen={showingSubscriptionModal}
                 onClose={() => setShowingSubscriptionModal(false)}
             />
