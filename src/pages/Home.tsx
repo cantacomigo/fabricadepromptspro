@@ -128,7 +128,7 @@ export default function Home() {
                         </h1>
 
                         <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: 'rgba(255,255,255,0.5)', margin: '0 auto 36px', maxWidth: 560, lineHeight: 1.7 }}>
-                            Desbloqueie prompts premium testados e aprovados para extrair o máximo poder do ChatGPT e transformar suas conversas em resultados profissionais.
+                            Desbloqueie prompts premium testados e aprovados para extrair o máximo poder do ChatGPT e gerar imagens extraordinárias com precisão profissional.
                         </p>
 
                         <div style={{ position: 'relative', maxWidth: 480, margin: '0 auto' }}>
@@ -196,8 +196,8 @@ export default function Home() {
                             },
                             {
                                 icon: <Sparkles size={24} color="#06b6d4" />,
-                                title: "3. Copie e Utilize",
-                                desc: "Copie o prompt desbloqueado, cole no seu ChatGPT e obtenha respostas de nível profissional instantaneamente."
+                                title: "3. Copie e Gere",
+                                desc: "Copie o prompt desbloqueado, cole no seu ChatGPT e gere imagens extraordinárias de nível profissional instantaneamente."
                             }
                         ].map((step, i) => (
                             <motion.div

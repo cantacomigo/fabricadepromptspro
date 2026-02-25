@@ -24,7 +24,7 @@ export default function Footer() {
                             />
                         </div>
                         <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, maxWidth: 260, lineHeight: 1.6, margin: 0 }}>
-                            A maior plataforma de prompts premium para ChatGPT do Brasil. Eleve o nível das suas conversas.
+                            A maior plataforma de prompts premium para ChatGPT do Brasil. Gere imagens extraordinárias com o poder da IA.
                         </p>
                     </div>
 
