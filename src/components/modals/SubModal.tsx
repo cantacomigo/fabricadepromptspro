@@ -8,7 +8,7 @@ interface Props {
     onClose: () => void
 }
 
-export default function SubscriptionModal({ isOpen, onClose }: Props) {
+export default function SubModal({ isOpen, onClose }: Props) {
     const { user, supabase } = useAuth()
     const [loading, setLoading] = useState(false)
     const [success, setSuccess] = useState(false)
