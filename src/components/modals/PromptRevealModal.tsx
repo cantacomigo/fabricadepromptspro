@@ -125,7 +125,7 @@ export default function PromptRevealModal({ prompt, purchaseId: _pid, onClose }:
                             <motion.button
                                 onClick={copy}
                                 style={{
-                                    width: '100%', padding: '13px', borderRadius: 12, marginBottom: 20,
+                                    width: '100%', padding: '13px', borderRadius: 12, marginBottom: 24,
                                     background: copied ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)',
                                     border: `1px solid ${copied ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.1)'}`,
                                     color: copied ? '#10b981' : 'rgba(255,255,255,0.8)',
@@ -137,6 +137,31 @@ export default function PromptRevealModal({ prompt, purchaseId: _pid, onClose }:
                             >
                                 {copied ? <><Check size={16} /> Copiado com sucesso!</> : <><Copy size={16} /> Copiar Prompt</>}
                             </motion.button>
+
+                            {/* Step-by-Step Instructions */}
+                            <div style={{ marginBottom: 24, padding: '20px', borderRadius: 16, background: 'rgba(147,51,234,0.05)', border: '1px solid rgba(147,51,234,0.2)' }}>
+                                <div style={{ fontSize: 13, color: '#9333ea', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <Star size={14} fill="#9333ea" /> Instruções Passo a Passo
+                                </div>
+                                <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
+                                    {prompt.instructions || (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                            <div style={{ display: 'flex', gap: 10 }}>
+                                                <span style={{ color: '#9333ea', fontWeight: 800 }}>1.</span>
+                                                <span>Abra o seu <b>ChatGPT</b> (preferencialmente versão Plus/GPT-4 para melhores resultados de imagem).</span>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: 10 }}>
+                                                <span style={{ color: '#9333ea', fontWeight: 800 }}>2.</span>
+                                                <span>Cole o prompt copiado acima exatamente como está.</span>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: 10 }}>
+                                                <span style={{ color: '#9333ea', fontWeight: 800 }}>3.</span>
+                                                <span>Caso queira ajustar, mude apenas os termos entre colchetes ou as palavras-chave principais.</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
 
                             {/* Rating */}
                             <div style={{ padding: '16px 20px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>

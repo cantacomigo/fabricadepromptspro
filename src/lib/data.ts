@@ -12,6 +12,7 @@ export interface Prompt {
     ratingCount: number
     createdAt: number
     tags: string[]
+    instructions?: string
 }
 
 export interface Purchase {

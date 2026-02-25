@@ -98,8 +98,9 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
                 salesCount: p.sales_count,
                 likesCount: p.likes_count || 0,
                 rating: Number(p.rating),
-                ratingCount: 0, // Not explicitly tracked in schema but derived or unused
-                createdAt: new Date(p.created_at).getTime()
+                ratingCount: 0,
+                createdAt: new Date(p.created_at).getTime(),
+                instructions: p.instructions
             }))
 
             setPrompts(mapped)
@@ -120,7 +121,8 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
                 price: data.price,
                 category: data.category,
                 image_url: data.imageUrl,
-                tags: data.tags
+                tags: data.tags,
+                instructions: data.instructions
             }])
             .select()
 
@@ -138,7 +140,8 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
                 price: updates.price,
                 category: updates.category,
                 image_url: updates.imageUrl,
-                tags: updates.tags
+                tags: updates.tags,
+                instructions: updates.instructions
             })
             .eq('id', id)
 
