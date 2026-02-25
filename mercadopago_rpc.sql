@@ -45,16 +45,29 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 3. Create a status check function
 CREATE OR REPLACE FUNCTION check_mp_payment_status_rpc(
-  arg_purchase_id text
+  arg_payload jsonb
 ) RETURNS jsonb AS $$
 DECLARE
   resp http_response;
   access_token text := 'APP_USR-6736974007209606-022515-2315816c91bbb8511521cd9a54012b24-1240474199';
   payment_data jsonb;
+  search_url text;
 BEGIN
-  -- Search for payments with this external_reference
+  -- Search priority: 
+  -- 1. By preference_id (used for subscriptions and new multi-item carts)
+  -- 2. By external_reference (legacy/individual purchases)
+  
+  IF (arg_payload->>'preference_id' IS NOT NULL) THEN
+    search_url := 'https://api.mercadopago.com/v1/payments/search?preference_id=' || (arg_payload->>'preference_id');
+  ELSIF (arg_payload->>'purchase_id' IS NOT NULL) THEN
+    search_url := 'https://api.mercadopago.com/v1/payments/search?external_reference=' || (arg_payload->>'purchase_id');
+  ELSE
+    RETURN jsonb_build_object('status', 'error', 'message', 'No valid ID provided for search');
+  END IF;
+
+  -- Execute the GET request
   SELECT * INTO resp FROM http_get(
-    'https://api.mercadopago.com/v1/payments/search?external_reference=' || arg_purchase_id,
+    search_url,
     ARRAY[http_header('Authorization', 'Bearer ' || access_token)]
   );
 
@@ -62,31 +75,45 @@ BEGIN
 
     -- If there's an approved payment, update the purchase record
     IF (payment_data->'results'->0->>'status' = 'approved') THEN
-        -- Link the payment ID to ALL purchases with this preference ID
-        UPDATE purchases
-        SET
-            status = 'confirmed',
-            mp_payment_id = payment_data->'results'->0->>'id'
-        WHERE mp_preference_id = (arg_payload->>'preference_id');
+        -- Safely determine which preference_id to use for updating
+        DECLARE
+          found_pref_id text := COALESCE(arg_payload->>'preference_id', payment_data->'results'->0->>'preference_id');
+          found_payment_id text := payment_data->'results'->0->>'id';
+        BEGIN
+            -- Update by Preference ID (covers multi-item and subscriptions)
+            IF found_pref_id IS NOT NULL THEN
+                UPDATE purchases
+                SET status = 'confirmed', mp_payment_id = found_payment_id
+                WHERE mp_preference_id = found_pref_id OR id = (arg_payload->>'purchase_id');
+            ELSE
+                -- Fallback to Purchase ID
+                UPDATE purchases
+                SET status = 'confirmed', mp_payment_id = found_payment_id
+                WHERE id = (arg_payload->>'purchase_id');
+            END IF;
 
-        -- Check if any of these purchases are for the VIP Subscription
-        IF EXISTS (
-            SELECT 1 FROM purchases
-            WHERE mp_preference_id = (arg_payload->>'preference_id')
-            AND prompt_id = '00000000-0000-0000-0000-000000000001'
-        ) THEN
-            -- Activate the subscription for the user
-            -- Use the user_id from the first purchase found
-            PERFORM public.activate_subscription(
-                (SELECT user_id FROM purchases WHERE mp_preference_id = (arg_payload->>'preference_id') LIMIT 1),
-                payment_data->'results'->0->>'id',
-                30
-            );
-        END IF;
+            -- Subscription Activation Logic
+            IF EXISTS (
+                SELECT 1 FROM purchases
+                WHERE (mp_preference_id = found_pref_id OR id = (arg_payload->>'purchase_id'))
+                AND prompt_id = '00000000-0000-0000-0000-000000000001'
+            ) THEN
+                PERFORM public.activate_subscription(
+                    (SELECT user_id FROM purchases WHERE (mp_preference_id = found_pref_id OR id = (arg_payload->>'purchase_id')) LIMIT 1),
+                    found_payment_id,
+                    30
+                );
+            END IF;
+        END;
 
         RETURN jsonb_build_object('status', 'approved', 'id', payment_data->'results'->0->>'id');
     END IF;
 
-  RETURN jsonb_build_object('status', 'pending');
+    -- If no results but no error, it's just pending
+    IF (jsonb_array_length(payment_data->'results') = 0) THEN
+        RETURN jsonb_build_object('status', 'pending', 'debug_search_url', search_url);
+    END IF;
+
+    RETURN jsonb_build_object('status', 'pending', 'raw_res', payment_data);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
