@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Check, Zap, Rocket, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { generatePixCode } from '../../lib/pixUtils'
 
 interface Props {
     isOpen: boolean
@@ -14,8 +15,15 @@ export default function SubModal({ isOpen, onClose }: Props) {
     const [success, setSuccess] = useState(false)
     const [showPix, setShowPix] = useState(false)
 
-    // Mock Pix generating for Subscription (R$ 49,90)
-    const pixCode = "00020126330014BR.GOV.BCB.PIX0111fabricapix520400005303986540549.905802BR5920Fabrica de Prompts6009SAO PAULO62070503***6304ABCD"
+    // Dynamic Pix generating for Subscription (R$ 49,90)
+    const pixCode = generatePixCode({
+        key: '18441332819',
+        beneficiaryName: 'Joaquim Carlos da Cruz',
+        city: 'Olimpia',
+        amount: 49.90,
+        description: 'Assinatura VIP 30 Dias',
+        transactionId: 'SUB' + Math.floor(Date.now() / 1000).toString()
+    })
 
     const handleSubscribe = async () => {
         if (!user) return
