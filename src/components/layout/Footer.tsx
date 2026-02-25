@@ -33,7 +33,7 @@ export default function Footer() {
                         <FooterCol title="Plataforma" links={[
                             { label: 'Galeria', to: '/' },
                             { label: 'Como funciona', to: '/#como-funciona' },
-                            { label: 'Preços', to: '/' },
+                            { label: 'Preços', to: '/#precos' },
                         ]} />
                         <FooterCol title="Conta" links={[
                             { label: 'Entrar', to: '/auth' },

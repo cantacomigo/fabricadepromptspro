@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Sparkles, TrendingUp, Zap } from 'lucide-react'
+import { Search, Sparkles, TrendingUp, Zap, Check } from 'lucide-react'
 import { usePrompts } from '../contexts/PromptsContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useCart } from '../contexts/CartContext'
@@ -33,6 +33,13 @@ export default function Home() {
     useEffect(() => {
         if (location.hash === '#como-funciona') {
             const el = document.getElementById('como-funciona')
+            if (el) {
+                setTimeout(() => {
+                    el.scrollIntoView({ behavior: 'smooth' })
+                }, 100)
+            }
+        } else if (location.hash === '#precos') {
+            const el = document.getElementById('precos')
             if (el) {
                 setTimeout(() => {
                     el.scrollIntoView({ behavior: 'smooth' })
@@ -229,8 +236,83 @@ export default function Home() {
                 </div>
             </div>
 
+            {/* Pricing Section */}
+            <div id="precos" style={{ padding: '80px 24px', background: 'radial-gradient(circle at center, rgba(147,51,234,0.05) 0%, transparent 70%)' }}>
+                <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+                    <div style={{ textAlign: 'center', marginBottom: 60 }}>
+                        <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, color: 'white', margin: '0 0 16px' }}>
+                            Preços Transparentes
+                        </h2>
+                        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16, maxWidth: 600, margin: '0 auto' }}>
+                            Sem assinaturas complicadas. Pague apenas pelo que você precisa.
+                        </p>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            whileInView={{ opacity: 1, scale: 1 }}
+                            viewport={{ once: true }}
+                            style={{
+                                width: '100%', maxWidth: 450, padding: '40px 32px', borderRadius: 24,
+                                background: 'rgba(255,255,255,0.03)',
+                                border: '2px solid rgba(147,51,234,0.3)',
+                                position: 'relative', overflow: 'hidden',
+                                textAlign: 'center'
+                            }}
+                        >
+                            <div style={{ position: 'absolute', top: 20, right: -30, background: '#9333ea', color: 'white', fontSize: 10, fontWeight: 800, padding: '4px 30px', transform: 'rotate(45deg)', textTransform: 'uppercase' }}>
+                                Melhor Valor
+                            </div>
+
+                            <h3 style={{ fontSize: 24, fontWeight: 700, color: 'white', marginBottom: 8 }}>Pay-per-Prompt</h3>
+                            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4, marginBottom: 24 }}>
+                                <span style={{ fontSize: 18, color: 'rgba(255,255,255,0.5)' }}>R$</span>
+                                <span style={{ fontSize: 48, fontWeight: 900, color: 'white' }}>9,90</span>
+                                <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>/médio</span>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 32, textAlign: 'left' }}>
+                                {[
+                                    "Acesso Vitalício ao Prompt",
+                                    "Instruções Passo a Passo",
+                                    "Variantes de Estilo Inclusas",
+                                    "Suporte via WhatsApp",
+                                    "Atualizações Gratuitas",
+                                    "Sem Mensalidade ou Taxas Ocultas"
+                                ].map((item, idx) => (
+                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
+                                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(147,51,234,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Check size={10} color="#9333ea" />
+                                        </div>
+                                        {item}
+                                    </div>
+                                ))}
+                            </div>
+
+                            <motion.button
+                                onClick={() => {
+                                    const el = document.getElementById('galeria')
+                                    if (el) el.scrollIntoView({ behavior: 'smooth' })
+                                }}
+                                style={{
+                                    width: '100%', padding: '16px', borderRadius: 12,
+                                    background: 'linear-gradient(135deg, #9333ea, #3b82f6)',
+                                    border: 'none', color: 'white', fontWeight: 700, fontSize: 16,
+                                    cursor: 'pointer'
+                                }}
+                                whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(147,51,234,0.4)' }}
+                                whileTap={{ scale: 0.98 }}
+                            >
+                                Explorar Galeria
+                            </motion.button>
+                        </motion.div>
+                    </div>
+                </div>
+            </div>
+
             {/* Main Content */}
-            <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px 80px' }}>
+            <div id="galeria" style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px 80px' }}>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 32, flexWrap: 'wrap', overflowX: 'auto', paddingBottom: 4 }}>
                     {displayCategories.map(cat => (
                         <motion.button

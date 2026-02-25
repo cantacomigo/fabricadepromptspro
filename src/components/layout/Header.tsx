@@ -32,6 +32,7 @@ export default function Header() {
     const navLinks = [
         { label: 'Galeria', to: '/' },
         { label: 'Como funciona', to: '/#como-funciona' },
+        { label: 'Preços', to: '/#precos' },
         ...(user ? [{ label: 'Meus Prompts', to: '/dashboard' }] : []),
         ...(isAdmin ? [{ label: 'Admin', to: '/admin' }] : []),
     ]
