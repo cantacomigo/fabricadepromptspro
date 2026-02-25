@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Check, Zap, Rocket, ShieldCheck, Loader2 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import MercadoPagoCheckout from './MercadoPagoCheckout'
-import { generatePixCode } from '../../lib/pixUtils'
 
 interface Props {
     isOpen: boolean
@@ -16,6 +15,7 @@ export default function SubModal({ isOpen, onClose }: Props) {
     const [success, setSuccess] = useState(false)
     const [preferenceId, setPreferenceId] = useState<string | null>(null)
     const [mpError, setMpError] = useState<string | null>(null)
+    const [pollingActive, setPollingActive] = useState(false)
 
     const handleSubscribe = async () => {
         if (!user) return
@@ -23,7 +23,6 @@ export default function SubModal({ isOpen, onClose }: Props) {
         setMpError(null)
 
         try {
-            // 1. Create a special purchase for the VIP Subscription Prompt ID
             const vipPrompt = {
                 id: '00000000-0000-0000-0000-000000000001',
                 title: 'Assinatura VIP PRO (30 Dias)',
@@ -32,7 +31,6 @@ export default function SubModal({ isOpen, onClose }: Props) {
                 category: 'VIP',
                 prompt: 'VIP',
                 imageUrl: '',
-                authorId: 'admin',
                 salesCount: 0,
                 likesCount: 0,
                 rating: 5,
@@ -43,6 +41,7 @@ export default function SubModal({ isOpen, onClose }: Props) {
 
             const { preferenceId: prefId } = await createMPPreference([vipPrompt])
             setPreferenceId(prefId)
+            setPollingActive(true)
         } catch (err: any) {
             console.error('Subscription error:', err)
             setMpError('Erro ao iniciar pagamento. Tente novamente.')
@@ -51,28 +50,49 @@ export default function SubModal({ isOpen, onClose }: Props) {
         }
     }
 
-    const checkStatus = async () => {
-        if (!preferenceId) return
-        setLoading(true)
+    const checkStatus = useCallback(async (silent: boolean = false) => {
+        if (!preferenceId || success) return
+        if (!silent) setLoading(true)
+        setMpError(null)
+
         try {
-            const { data } = await supabase.rpc('check_mp_payment_status_rpc', {
+            const { data, error } = await supabase.rpc('check_mp_payment_status_rpc', {
                 payload: { preference_id: preferenceId }
             })
 
-            if (data.status === 'approved') {
+            if (error) {
+                console.error('RPC error:', error)
+                if (!silent) setMpError('Erro na verificação: ' + error.message)
+                return
+            }
+
+            if (data?.status === 'approved') {
                 setSuccess(true)
+                setPollingActive(false)
                 setTimeout(() => {
                     window.location.reload()
                 }, 2000)
-            } else {
-                setMpError('Pagamento ainda não detectado. Se já pagou, aguarde 30 segundos.')
+            } else if (!silent) {
+                setMpError('Pagamento ainda não detectado. Se já pagou, aguarde alguns segundos...')
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('Status check error:', err)
+            if (!silent) setMpError('Falha na conexão: ' + (err.message || 'Verifique sua internet'))
         } finally {
-            setLoading(false)
+            if (!silent) setLoading(false)
         }
-    }
+    }, [preferenceId, success, supabase])
+
+    // Automatic polling every 5 seconds
+    useEffect(() => {
+        let interval: NodeJS.Timeout
+        if (pollingActive && !success) {
+            interval = setInterval(() => {
+                checkStatus(true)
+            }, 5000)
+        }
+        return () => { if (interval) clearInterval(interval) }
+    }, [pollingActive, success, checkStatus])
 
     return (
         <AnimatePresence>
@@ -130,6 +150,13 @@ export default function SubModal({ isOpen, onClose }: Props) {
                                     <div style={{ padding: '20px 0' }}>
                                         <MercadoPagoCheckout preferenceId={preferenceId} />
 
+                                        {pollingActive && !mpError && (
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>
+                                                <Loader2 size={14} className="animate-spin" />
+                                                Verificando pagamento automaticamente...
+                                            </div>
+                                        )}
+
                                         {mpError && (
                                             <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: 12, color: '#ef4444', fontSize: 13, textAlign: 'center', marginTop: 16 }}>
                                                 {mpError}
@@ -137,7 +164,7 @@ export default function SubModal({ isOpen, onClose }: Props) {
                                         )}
 
                                         <button
-                                            onClick={checkStatus}
+                                            onClick={() => checkStatus(false)}
                                             disabled={loading}
                                             style={{
                                                 width: '100%', padding: '16px', borderRadius: 12,
@@ -152,7 +179,7 @@ export default function SubModal({ isOpen, onClose }: Props) {
                                         </button>
 
                                         <button
-                                            onClick={() => setPreferenceId(null)}
+                                            onClick={() => { setPreferenceId(null); setPollingActive(false) }}
                                             style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 16, cursor: 'pointer' }}
                                         >
                                             Alterar forma de pagamento
