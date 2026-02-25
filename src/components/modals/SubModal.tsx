@@ -12,6 +12,10 @@ export default function SubModal({ isOpen, onClose }: Props) {
     const { user, supabase } = useAuth()
     const [loading, setLoading] = useState(false)
     const [success, setSuccess] = useState(false)
+    const [showPix, setShowPix] = useState(false)
+
+    // Mock Pix generating for Subscription (R$ 49,90)
+    const pixCode = "00020126330014BR.GOV.BCB.PIX0111fabricapix520400005303986540549.905802BR5920Fabrica de Prompts6009SAO PAULO62070503***6304ABCD"
 
     const handleSubscribe = async () => {
         if (!user) return
@@ -91,44 +95,84 @@ export default function SubModal({ isOpen, onClose }: Props) {
                                     Acesso total e imediato à maior biblioteca de prompts ChatGPT do Brasil.
                                 </p>
 
-                                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 24, marginBottom: 32, textAlign: 'left' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                                        <span style={{ color: 'white', fontWeight: 600 }}>Plano 30 Dias</span>
-                                        <span style={{ color: 'white', fontSize: 20, fontWeight: 800 }}>R$ 49,90</span>
-                                    </div>
+                                {showPix ? (
+                                    <div style={{ padding: '20px 0' }}>
+                                        <div style={{ background: 'white', padding: 16, borderRadius: 12, width: 'fit-content', margin: '0 auto 24px' }}>
+                                            <img
+                                                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixCode)}`}
+                                                alt="QR Code Pix"
+                                                style={{ width: 200, height: 200, display: 'block' }}
+                                            />
+                                        </div>
+                                        <div style={{ background: 'rgba(255,255,255,0.05)', padding: 16, borderRadius: 12, marginBottom: 24, textAlign: 'left' }}>
+                                            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginBottom: 8, textTransform: 'uppercase' }}>Código Pix (Copia e Cola)</p>
+                                            <code style={{ color: 'white', fontSize: 10, wordBreak: 'break-all', display: 'block', background: 'black', padding: 10, borderRadius: 8 }}>
+                                                {pixCode}
+                                            </code>
+                                        </div>
 
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                        {[
-                                            { icon: <Rocket size={16} />, text: "Downloads ilimitados instantâneos" },
-                                            { icon: <Zap size={16} />, text: "Acesso a novos prompts VIP" },
-                                            { icon: <ShieldCheck size={16} />, text: "Suporte prioritário" }
-                                        ].map((item, i) => (
-                                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>
-                                                <div style={{ color: '#9333ea' }}>{item.icon}</div>
-                                                {item.text}
+                                        <motion.button
+                                            onClick={handleSubscribe}
+                                            disabled={loading}
+                                            style={{
+                                                width: '100%', padding: '16px', borderRadius: 12,
+                                                background: '#10b981',
+                                                border: 'none', color: 'white', fontWeight: 700, fontSize: 16,
+                                                cursor: loading ? 'not-allowed' : 'pointer',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                                            }}
+                                            whileHover={{ scale: 1.02 }}
+                                        >
+                                            {loading ? 'Confirmando...' : 'Já paguei, Ativar Agora!'}
+                                        </motion.button>
+
+                                        <button
+                                            onClick={() => setShowPix(false)}
+                                            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 16, cursor: 'pointer' }}
+                                        >
+                                            Voltar para detalhes do plano
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 24, marginBottom: 32, textAlign: 'left' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                                                <span style={{ color: 'white', fontWeight: 600 }}>Plano 30 Dias</span>
+                                                <span style={{ color: 'white', fontSize: 20, fontWeight: 800 }}>R$ 49,90</span>
                                             </div>
-                                        ))}
-                                    </div>
-                                </div>
 
-                                <motion.button
-                                    onClick={handleSubscribe}
-                                    disabled={loading}
-                                    style={{
-                                        width: '100%', padding: '16px', borderRadius: 12,
-                                        background: 'linear-gradient(135deg, #9333ea, #3b82f6)',
-                                        border: 'none', color: 'white', fontWeight: 700, fontSize: 16,
-                                        cursor: loading ? 'not-allowed' : 'pointer',
-                                        opacity: loading ? 0.7 : 1
-                                    }}
-                                    whileHover={!loading ? { scale: 1.02, boxShadow: '0 0 20px rgba(147,51,234,0.3)' } : {}}
-                                >
-                                    {loading ? 'Processando...' : 'Confirmar Assinatura'}
-                                </motion.button>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                                {[
+                                                    { icon: <Rocket size={16} />, text: "Downloads ilimitados instantâneos" },
+                                                    { icon: <Zap size={16} />, text: "Acesso a novos prompts VIP" },
+                                                    { icon: <ShieldCheck size={16} />, text: "Suporte prioritário" }
+                                                ].map((item, i) => (
+                                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>
+                                                        <div style={{ color: '#9333ea' }}>{item.icon}</div>
+                                                        {item.text}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
 
-                                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', marginTop: 16 }}>
-                                    Ao clicar em confirmar, você terá acesso imediato por 30 dias.
-                                </p>
+                                        <motion.button
+                                            onClick={() => setShowPix(true)}
+                                            style={{
+                                                width: '100%', padding: '16px', borderRadius: 12,
+                                                background: 'linear-gradient(135deg, #9333ea, #3b82f6)',
+                                                border: 'none', color: 'white', fontWeight: 700, fontSize: 16,
+                                                cursor: 'pointer'
+                                            }}
+                                            whileHover={{ scale: 1.02, boxShadow: '0 0 20px rgba(147,51,234,0.3)' }}
+                                        >
+                                            Prosseguir para Pagamento
+                                        </motion.button>
+
+                                        <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', marginTop: 16 }}>
+                                            Ao clicar em confirmar, você será levado ao pagamento via Pix.
+                                        </p>
+                                    </>
+                                )}
                             </>
                         )}
                     </motion.div>
