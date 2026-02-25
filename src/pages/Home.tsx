@@ -8,7 +8,7 @@ import { useLocation } from 'react-router-dom'
 import PromptCard from '../components/gallery/PromptCard'
 import UnlockModal from '../components/modals/UnlockModal'
 import PixPaymentModal from '../components/modals/PixPaymentModal'
-import PromptDetailModal from '../components/modals/PromptDetailModal'
+import PromptRevealModal from '../components/modals/PromptRevealModal'
 import SubscriptionModal from '../components/modals/SubscriptionModal'
 import ImageLightbox from '../components/modals/ImageLightbox'
 import CartDrawer from '../components/cart/CartDrawer'
@@ -456,9 +456,9 @@ export default function Home() {
             />
 
             <PromptRevealModal
-                prompt={revealPrompt}
+                prompt={viewingPrompt}
                 purchaseId={lastPurchaseId}
-                onClose={() => { setRevealPrompt(null); setLastPurchaseId(null) }}
+                onClose={() => { setViewingPrompt(null); setLastPurchaseId(null) }}
             />
 
             <ImageLightbox
