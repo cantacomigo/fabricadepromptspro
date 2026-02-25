@@ -1,12 +1,24 @@
--- 1. Enable the HTTP extension (Requires Superuser or Dashboard SQL Editor)
+-- ==========================================================
+-- MERCADO PAGO RPC FUNCTIONS FOR FÁBRICA DE PROMPTS
+-- Execute no SQL Editor do Supabase
+-- ==========================================================
+
+-- 1. Enable the HTTP extension
 CREATE EXTENSION IF NOT EXISTS http;
 
--- 1.5 Insert VIP Prompt for Subscription payment tracking
+-- 2. Insert VIP Prompt for Subscription payment tracking
 INSERT INTO prompts (id, title, description, prompt_text, price, category, image_url)
 VALUES ('00000000-0000-0000-0000-000000000001', 'Assinatura VIP PRO', 'Acesso ilimitado por 30 dias', 'VIP', 49.90, 'VIP', 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&q=80&w=400')
 ON CONFLICT (id) DO NOTHING;
 
--- 2. Create the preference creation function
+-- 3. Drop old versions to avoid conflicts
+DROP FUNCTION IF EXISTS create_mp_preference_rpc(jsonb, text, text, text);
+DROP FUNCTION IF EXISTS create_mp_preference_rpc(jsonb);
+DROP FUNCTION IF EXISTS create_mp_preference_rpc(text, text, text, text);
+DROP FUNCTION IF EXISTS check_mp_payment_status_rpc(text);
+DROP FUNCTION IF EXISTS check_mp_payment_status_rpc(jsonb);
+
+-- 4. Create the preference creation function
 CREATE OR REPLACE FUNCTION create_mp_preference_rpc(
   payload jsonb
 ) RETURNS jsonb AS $$
@@ -27,22 +39,20 @@ BEGIN
     'external_reference', payload->>'external_reference'
   );
 
-  SELECT * INTO resp FROM http_post(
+  -- Use http() with http_request type for header support
+  SELECT * INTO resp FROM http((
+    'POST',
     'https://api.mercadopago.com/checkout/preferences',
-    pref_body::text,
+    ARRAY[http_header('Authorization', 'Bearer ' || access_token)],
     'application/json',
-    ARRAY[http_header('Authorization', 'Bearer ' || access_token)]
-  );
+    pref_body::text
+  )::http_request);
 
   RETURN resp.content::jsonb;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 3. Drop old versions to avoid conflicts
-DROP FUNCTION IF EXISTS check_mp_payment_status_rpc(text);
-DROP FUNCTION IF EXISTS check_mp_payment_status_rpc(jsonb);
-
--- 4. Create the payment status check function
+-- 5. Create the payment status check function
 CREATE OR REPLACE FUNCTION check_mp_payment_status_rpc(
   payload jsonb
 ) RETURNS jsonb AS $$
@@ -63,11 +73,14 @@ BEGIN
     RETURN jsonb_build_object('status', 'error', 'message', 'No valid ID provided');
   END IF;
 
-  -- Call Mercado Pago API
-  SELECT * INTO resp FROM http_get(
+  -- Use http() with http_request type for header support
+  SELECT * INTO resp FROM http((
+    'GET',
     search_url,
-    ARRAY[http_header('Authorization', 'Bearer ' || access_token)]
-  );
+    ARRAY[http_header('Authorization', 'Bearer ' || access_token)],
+    NULL,
+    NULL
+  )::http_request);
 
   payment_data := resp.content::jsonb;
 
