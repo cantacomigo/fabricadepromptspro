@@ -207,6 +207,12 @@ export default function SubModal({ isOpen, onClose }: Props) {
                                             </div>
                                         </div>
 
+                                        {mpError && (
+                                            <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: 12, color: '#ef4444', fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
+                                                {mpError}
+                                            </div>
+                                        )}
+
                                         <motion.button
                                             onClick={handleSubscribe}
                                             disabled={loading}
