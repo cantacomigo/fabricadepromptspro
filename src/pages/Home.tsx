@@ -14,7 +14,7 @@ import type { Prompt } from '../lib/data'
 import { useNavigate } from 'react-router-dom'
 
 export default function Home() {
-    const { prompts, categories, incrementSales } = usePrompts()
+    const { prompts, categories, incrementSales, totalSystemSales } = usePrompts()
     const { hasPurchased, confirmPurchase } = useAuth()
     const { cartItems, setCartOpen, clearCart } = useCart()
     const navigate = useNavigate()
@@ -37,7 +37,7 @@ export default function Home() {
         })
     }, [prompts, category, search])
 
-    const totalSales = prompts.reduce((a, p) => a + p.salesCount, 0)
+    const totalSales = totalSystemSales
     const avgRating = prompts.length > 0
         ? (prompts.reduce((a, p) => a + p.rating, 0) / prompts.length).toFixed(1)
         : '0.0'

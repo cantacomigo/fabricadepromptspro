@@ -10,6 +10,7 @@ interface PromptsContextType {
     updatePrompt: (id: string, updates: Partial<Prompt>) => Promise<void>
     deletePrompt: (id: string) => Promise<void>
     incrementSales: (id: string) => Promise<void>
+    totalSystemSales: number
     ratePrompt: (id: string, rating: number) => Promise<void>
     toggleLike: (promptId: string) => Promise<void>
     userLikes: string[]
@@ -23,6 +24,8 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
     const [prompts, setPrompts] = useState<Prompt[]>([])
     const [categories, setCategories] = useState<string[]>([])
     const [userLikes, setUserLikes] = useState<string[]>([])
+    const [totalSystemSales, setTotalSystemSales] = useState(0)
+    const [processingLikes, setProcessingLikes] = useState<Set<string>>(new Set())
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -72,6 +75,16 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
                 .order('created_at', { ascending: false })
 
             if (error) throw error
+
+            // Fetch total confirmed sales
+            const { count, error: countError } = await supabase
+                .from('purchases')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'confirmed')
+
+            if (!countError && count !== null) {
+                setTotalSystemSales(count)
+            }
 
             // Map Supabase fields to our Prompt interface
             const mapped: Prompt[] = (data || []).map(p => ({
@@ -195,9 +208,13 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) throw new Error('É necessário estar logado para curtir.')
 
+        if (processingLikes.has(promptId)) return
+
         const isLiked = userLikes.includes(promptId)
         const prompt = prompts.find(p => p.id === promptId)
         if (!prompt) return
+
+        setProcessingLikes(prev => new Set(prev).add(promptId))
 
         try {
             if (isLiked) {
@@ -211,32 +228,47 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
 
                 await supabase
                     .from('prompts')
-                    .update({ likes_count: Math.max(0, prompt.likesCount - 1) })
+                    .update({ likes_count: Math.max(0, (prompt.likesCount || 0) - 1) })
                     .eq('id', promptId)
 
                 setUserLikes(prev => prev.filter(id => id !== promptId))
+                setPrompts(prev => prev.map(p =>
+                    p.id === promptId
+                        ? { ...p, likesCount: Math.max(0, (p.likesCount || 0) - 1) }
+                        : p
+                ))
             } else {
                 const { error: insertError } = await supabase
                     .from('likes')
                     .insert([{ user_id: user.id, prompt_id: promptId }])
 
-                if (insertError) throw insertError
+                // 23505 is the error code for unique_violation in PostgreSQL
+                if (insertError && insertError.code !== '23505') throw insertError
 
-                await supabase
-                    .from('prompts')
-                    .update({ likes_count: prompt.likesCount + 1 })
-                    .eq('id', promptId)
+                // Even if it was a duplicate, we treat it as "liked" in the UI to sync
+                if (!insertError) {
+                    await supabase
+                        .from('prompts')
+                        .update({ likes_count: (prompt.likesCount || 0) + 1 })
+                        .eq('id', promptId)
+                }
 
-                setUserLikes(prev => [...prev, promptId])
+                setUserLikes(prev => prev.includes(promptId) ? prev : [...prev, promptId])
+                setPrompts(prev => prev.map(p =>
+                    p.id === promptId && !isLiked
+                        ? { ...p, likesCount: (p.likesCount || 0) + (insertError ? 0 : 1) }
+                        : p
+                ))
             }
-            setPrompts(prev => prev.map(p =>
-                p.id === promptId
-                    ? { ...p, likesCount: isLiked ? Math.max(0, p.likesCount - 1) : p.likesCount + 1 }
-                    : p
-            ))
         } catch (err) {
             console.error('Error toggling like:', err)
             throw err
+        } finally {
+            setProcessingLikes(prev => {
+                const next = new Set(prev)
+                next.delete(promptId)
+                return next
+            })
         }
     }
 
@@ -244,7 +276,7 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
         <PromptsContext.Provider value={{
             prompts, categories, loading,
             addPrompt, updatePrompt, deletePrompt,
-            incrementSales, ratePrompt, toggleLike,
+            incrementSales, totalSystemSales, ratePrompt, toggleLike,
             userLikes,
             addCategory, deleteCategory
         }}>
