@@ -9,6 +9,10 @@ import UserDashboard from './pages/UserDashboard.tsx'
 import Admin from './pages/Admin.tsx'
 import { useAuth } from './contexts/AuthContext'
 import { CartProvider } from './contexts/CartContext'
+import { initMercadoPago } from '@mercadopago/sdk-react'
+
+// Initialize Mercado Pago with public key from env
+initMercadoPago(import.meta.env.VITE_MP_PUBLIC_KEY || '')
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
     const { user, isAdmin } = useAuth()

@@ -25,6 +25,7 @@ export interface Purchase {
     confirmedAt?: number
     customerName?: string
     customerEmail?: string
+    mp_preference_id?: string | null
 }
 
 export interface User {

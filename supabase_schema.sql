@@ -54,6 +54,8 @@ CREATE TABLE IF NOT EXISTS purchases (
   prompt_id UUID REFERENCES prompts ON DELETE CASCADE NOT NULL,
   amount DECIMAL(10,2) NOT NULL,
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'failed')),
+  mp_preference_id TEXT,
+  mp_payment_id TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

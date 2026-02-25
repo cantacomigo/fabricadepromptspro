@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Copy, Check, Clock, CheckCircle2, Loader2 } from 'lucide-react'
+import { X, Check, CheckCircle2, Loader2, CreditCard } from 'lucide-react'
 import type { Prompt } from '../../lib/data'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePrompts } from '../../contexts/PromptsContext'
+import MercadoPagoCheckout from './MercadoPagoCheckout'
 
 interface Props {
     items: Prompt[]
@@ -12,81 +13,93 @@ interface Props {
 }
 
 export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
-    const { purchaseMultiplePrompts, purchases } = useAuth()
+    const { purchaseMultiplePrompts, purchases, createMPPreference, supabase } = useAuth()
     const { incrementSales } = usePrompts()
     const [purchaseIds, setPurchaseIds] = useState<string[]>([])
-    const [copied, setCopied] = useState(false)
-    const [timeLeft, setTimeLeft] = useState(900) // 15 min
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
+    const [mpLoading, setMpLoading] = useState(false)
+    const [mpError, setMpError] = useState<string | null>(null)
     const [status, setStatus] = useState<'pending' | 'confirmed'>('pending')
+    const [preferenceId, setPreferenceId] = useState<string | null>(null)
+    const [isProcessing, setIsProcessing] = useState(false)
+    const [pollingActive, setPollingActive] = useState(false)
 
     const totalPrice = items.reduce((acc, item) => acc + item.price, 0)
     const mainPurchaseId = purchaseIds[0] || ''
 
-    // Gerar código Pix dinâmico (formato estático simplificado)
-    const amountStr = totalPrice.toFixed(2)
-    const amountLen = amountStr.length.toString().padStart(2, '0')
-    const pixCode = mainPurchaseId
-        ? `00020126580014BR.GOV.BCB.PIX0136${mainPurchaseId}52040000530398654${amountLen}${amountStr}5802BR5920Fabrica de Prompts6009SAOPAULO62070503***63042B3F`
-        : ''
-
-    const qrUrl = pixCode
-        ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&bgcolor=0f0f1a&color=9333ea&data=${encodeURIComponent(pixCode)}`
-        : ''
-
-    // Start purchase when modal opens  
-    const startPurchase = useCallback(async () => {
-        if (items.length === 0 || purchaseIds.length > 0) return
-        setLoading(true)
-        setError(null)
+    // Start purchase when modal opens
+    const handleMPCheckout = useCallback(async () => {
+        if (items.length === 0 || preferenceId || isProcessing) return
+        setIsProcessing(true)
+        setMpLoading(true)
+        setMpError(null)
         try {
-            const ids = await purchaseMultiplePrompts(items.map(i => ({ id: i.id, price: i.price })))
-            setPurchaseIds(ids)
+            const result = await createMPPreference(items)
+            setPreferenceId(result.preferenceId)
+            setPurchaseIds(result.purchaseIds)
+            setPollingActive(true) // Start polling once we have a preference
         } catch (err: any) {
-            console.error('Failed to start purchase', err)
-            setError(err.message || 'Falha ao iniciar pagamento. Verifique se o SQL do Supabase foi rodado.')
+            console.error('MP failed', err)
+            const msg = (err.message || '').toLowerCase()
+            const fullMsg = err.message || JSON.stringify(err)
+
+            if (msg.includes('rpc') || msg.includes('does not exist')) {
+                setMpError(`Erro técnico: Função RPC não encontrada (${fullMsg}). Você aplicou o arquivo no Supabase?`)
+            } else {
+                setMpError(`Falha ao iniciar Mercado Pago: ${fullMsg}`)
+            }
         } finally {
-            setLoading(false)
+            setMpLoading(false)
+            setIsProcessing(false)
         }
-    }, [items, purchaseIds, purchaseMultiplePrompts])
+    }, [items, preferenceId, isProcessing, createMPPreference])
 
     useEffect(() => {
-        startPurchase()
-    }, [items.length, startPurchase])
+        handleMPCheckout()
+    }, [handleMPCheckout])
 
-    // Poll for payment confirmation
-    useEffect(() => {
-        if (purchaseIds.length === 0) return
-        const interval = setInterval(() => {
-            const relevantPurchases = purchases.filter(p => purchaseIds.includes(p.id))
-            const allConfirmed = relevantPurchases.length > 0 && relevantPurchases.every(p => p.status === 'confirmed')
+    const checkPaymentStatus = async (silentParam: boolean | any = false) => {
+        const silent = typeof silentParam === 'boolean' ? silentParam : false;
+        if (!mainPurchaseId || (status === 'confirmed' && !silent)) return
+        if (!silent) setMpLoading(true)
 
-            if (allConfirmed) {
+        try {
+            const { data, error: rpcError } = await supabase.rpc('check_mp_payment_status_rpc', {
+                payload: { purchase_id: mainPurchaseId }
+            })
+            if (rpcError) throw rpcError
+
+            if (data.status === 'approved') {
                 setStatus('confirmed')
-                clearInterval(interval)
+                setPollingActive(false)
                 // Increment sales for all
                 items.forEach(item => incrementSales(item.id))
-                setTimeout(() => onSuccess(purchaseIds), 1500)
+                setTimeout(() => {
+                    onSuccess(purchaseIds)
+                    onClose()
+                }, 3000)
+            } else if (data.status === 'error') {
+                if (!silent) setMpError(`Erro na verificação: ${data.message || 'Erro de rede no banco'}. Tente novamente em alguns segundos.`)
+            } else {
+                if (!silent) setMpError('Pagamento ainda não detectado. Se você já pagou, aguarde 1 minuto e tente novamente.')
             }
-        }, 1000)
-        return () => clearInterval(interval)
-    }, [purchaseIds, purchases, items, incrementSales, onSuccess])
-
-    // Countdown
-    useEffect(() => {
-        if (status === 'confirmed') return
-        const t = setInterval(() => setTimeLeft(s => s > 0 ? s - 1 : 0), 1000)
-        return () => clearInterval(t)
-    }, [status])
-
-    const copy = async () => {
-        await navigator.clipboard.writeText(pixCode)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+        } catch (err: any) {
+            console.error('Status check failed', err)
+            if (!silent) setMpError(`Falha na conexão: ${err.message || 'Verifique sua internet'}`)
+        } finally {
+            if (!silent) setMpLoading(false)
+        }
     }
 
-    const fmt = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`
+    // Automatic polling every 5 seconds
+    useEffect(() => {
+        let interval: NodeJS.Timeout
+        if (pollingActive && status === 'pending') {
+            interval = setInterval(() => {
+                checkPaymentStatus(true)
+            }, 5000)
+        }
+        return () => { if (interval) clearInterval(interval) }
+    }, [pollingActive, status, mainPurchaseId])
 
     return (
         <AnimatePresence>
@@ -114,12 +127,12 @@ export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
                             background: '#0f0f1a',
                             border: status === 'confirmed'
                                 ? '1px solid rgba(16,185,129,0.4)'
-                                : '1px solid rgba(147,51,234,0.3)',
+                                : '1px solid rgba(0,158,229,0.4)',
                             borderRadius: 20, padding: 32,
                             maxWidth: 420, width: '100%',
                             boxShadow: status === 'confirmed'
                                 ? '0 40px 120px rgba(0,0,0,0.9), 0 0 60px rgba(16,185,129,0.2)'
-                                : '0 40px 120px rgba(0,0,0,0.9), 0 0 60px rgba(147,51,234,0.2)'
+                                : '0 40px 120px rgba(0,0,0,0.9), 0 0 60px rgba(0,158,229,0.2)'
                         }}
                     >
                         {/* Success state */}
@@ -151,10 +164,14 @@ export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                                         <div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#9333ea' }} className="animate-pulse-neon" />
-                                                <span style={{ fontSize: 13, color: '#9333ea', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Aguardando Pagamento</span>
+                                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#009ee5' }} className="animate-pulse-neon" />
+                                                <span style={{ fontSize: 13, color: '#009ee5', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                                    Checkout Seguro
+                                                </span>
                                             </div>
-                                            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'white' }}>Pagar via Pix</h2>
+                                            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'white' }}>
+                                                Pagamento
+                                            </h2>
                                         </div>
                                         <motion.button onClick={onClose}
                                             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: 'rgba(255,255,255,0.6)', cursor: 'pointer', padding: 6 }}
@@ -164,7 +181,7 @@ export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
                                         </motion.button>
                                     </div>
 
-                                    {/* Summary */}
+                                    {/* Order Summary */}
                                     <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', marginBottom: 24 }}>
                                         {items.length === 1 ? (
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -193,61 +210,63 @@ export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
                                         </div>
                                     </div>
 
-                                    {/* QR Code */}
-                                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-                                        {loading ? (
-                                            <div style={{ width: 200, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                <Loader2 size={32} color="#9333ea" style={{ animation: 'spin 1s linear infinite' }} />
+                                    {/* Mercado Pago Component */}
+                                    <div style={{ minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        {mpLoading && !preferenceId ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                                                <Loader2 size={32} color="#009ee5" className="animate-spin" />
+                                                <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>Iniciando Mercado Pago...</span>
                                             </div>
-                                        ) : error ? (
-                                            <div style={{ width: 200, height: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 20, textAlign: 'center', background: 'rgba(239,68,68,0.05)', borderRadius: 16, border: '1px solid rgba(239,68,68,0.2)' }}>
-                                                <X size={32} color="#ef4444" />
-                                                <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 600 }}>Erro ao gerar Pix</div>
-                                                <button onClick={startPurchase} style={{ fontSize: 11, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>Tentar novamente</button>
+                                        ) : preferenceId ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%' }}>
+                                                <MercadoPagoCheckout preferenceId={preferenceId} />
+
+                                                {mpError && (
+                                                    <div style={{
+                                                        background: 'rgba(239,68,68,0.1)',
+                                                        border: '1px solid rgba(239,68,68,0.2)',
+                                                        borderRadius: 10, padding: 12,
+                                                        color: '#ef4444', fontSize: 13,
+                                                        textAlign: 'center'
+                                                    }}>
+                                                        {mpError}
+                                                    </div>
+                                                )}
+
+                                                <button
+                                                    onClick={checkPaymentStatus}
+                                                    disabled={mpLoading}
+                                                    style={{
+                                                        width: '100%', padding: '12px', borderRadius: 12,
+                                                        background: 'rgba(0,158,229,0.1)', border: '1px solid rgba(0,158,229,0.4)',
+                                                        color: '#009ee5', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                                        transition: 'all 0.2s'
+                                                    }}
+                                                >
+                                                    {mpLoading ? <Loader2 size={16} className="animate-spin" /> : 'Já paguei! Verificar aprovação'}
+                                                </button>
                                             </div>
-                                        ) : (
-                                            <div style={{ padding: 16, background: '#0a0a12', borderRadius: 16, border: '1px solid rgba(147,51,234,0.3)' }}>
-                                                <img src={qrUrl} alt="QR Code Pix" width={168} height={168} style={{ display: 'block', borderRadius: 8 }} />
+                                        ) : mpError ? (
+                                            <div style={{ textAlign: 'center', padding: 20 }}>
+                                                <div style={{ color: '#ef4444', fontSize: 14, marginBottom: 12 }}>{mpError}</div>
+                                                <button
+                                                    onClick={handleMPCheckout}
+                                                    style={{
+                                                        background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                                                        color: 'white', padding: '10px 20px', borderRadius: 12, cursor: 'pointer',
+                                                        fontSize: 13, fontWeight: 600
+                                                    }}
+                                                >
+                                                    Tentar novamente
+                                                </button>
                                             </div>
-                                        )}
+                                        ) : null}
                                     </div>
 
-                                    {/* Pix copia e cola */}
-                                    <div style={{ marginBottom: 20 }}>
-                                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Pix Copia e Cola</div>
-                                        <div style={{ display: 'flex', gap: 8 }}>
-                                            <div style={{
-                                                flex: 1, padding: '10px 14px', borderRadius: 10, fontSize: 11,
-                                                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                                                color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                                fontFamily: 'monospace'
-                                            }}>
-                                                {pixCode || 'Gerando código...'}
-                                            </div>
-                                            <motion.button
-                                                onClick={copy}
-                                                style={{
-                                                    padding: '10px 16px', borderRadius: 10, fontSize: 12, fontWeight: 600,
-                                                    background: copied ? 'rgba(16,185,129,0.2)' : 'rgba(147,51,234,0.2)',
-                                                    border: `1px solid ${copied ? 'rgba(16,185,129,0.4)' : 'rgba(147,51,234,0.4)'}`,
-                                                    color: copied ? '#10b981' : '#9333ea', cursor: 'pointer',
-                                                    display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap'
-                                                }}
-                                                whileHover={{ scale: 1.03 }}
-                                                whileTap={{ scale: 0.97 }}
-                                            >
-                                                {copied ? <><Check size={14} /> Copiado!</> : <><Copy size={14} /> Copiar</>}
-                                            </motion.button>
-                                        </div>
-                                    </div>
-
-                                    {/* Timer */}
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, color: timeLeft < 60 ? '#f87171' : 'rgba(255,255,255,0.4)' }}>
-                                        <Clock size={14} /> Expira em {fmt(timeLeft)}
-                                    </div>
-
-                                    <div style={{ marginTop: 16, padding: '10px 14px', borderRadius: 10, background: 'rgba(147,51,234,0.08)', border: '1px solid rgba(147,51,234,0.15)', fontSize: 12, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 1.5 }}>
-                                        💡 Após realizar o pagamento, aguarde a confirmação automática. O acesso ao prompt será liberado em instantes.
+                                    {/* Footer Info */}
+                                    <div style={{ marginTop: 24, padding: '12px 16px', borderRadius: 10, background: 'rgba(0,158,229,0.08)', border: '1px solid rgba(0,158,229,0.15)', fontSize: 12, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 1.5 }}>
+                                        🔒 Pagamento processado com segurança pelo Mercado Pago. Clique em verificar após concluir.
                                     </div>
                                 </motion.div>
                             )}

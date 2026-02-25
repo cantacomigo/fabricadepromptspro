@@ -56,8 +56,23 @@ export default function Admin() {
     }>({ title: '', description: '', prompt: '', price: '4.90', category: categories[0] || '', imageUrl: '', tags: '' })
     const [saved, setSaved] = useState(false)
 
-    const pendingPurchases = purchases.filter(p => p.status === 'pending')
-    const confirmedPurchases = purchases.filter(p => p.status === 'confirmed')
+    // Filter duplicate purchases from the same checkout (multiple attempts)
+    const uniquePurchases = purchases.reduce((acc: any[], current) => {
+        // If it doesn't have a preference ID, it's a legacy or failed entry, keep it for now
+        if (!current.mp_preference_id) {
+            acc.push(current);
+            return acc;
+        }
+        // If we already have this preference ID, skip it
+        const x = acc.find(item => item.mp_preference_id === current.mp_preference_id);
+        if (!x) {
+            acc.push(current);
+        }
+        return acc;
+    }, []);
+
+    const pendingPurchases = uniquePurchases.filter(p => p.status === 'pending')
+    const confirmedPurchases = uniquePurchases.filter(p => p.status === 'confirmed')
     const totalRevenue = confirmedPurchases.reduce((a, p) => a + p.amount, 0)
 
     const resetForm = () => {

@@ -12,6 +12,8 @@ interface AuthContextType {
     purchaseMultiplePrompts: (prompts: { id: string, price: number }[]) => Promise<string[]>
     updateProfile: (name: string) => Promise<void>
     updatePassword: (password: string) => Promise<void>
+    createMPPreference: (items: Prompt[]) => Promise<{ preferenceId: string, purchaseIds: string[] }>
+    supabase: any
     confirmPurchase: (purchaseId: string) => Promise<void>
     getPurchases: () => Purchase[]
     getUserPurchasedPrompts: () => Prompt[]
@@ -247,6 +249,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) throw error
     }
 
+    const createMPPreference = async (items: Prompt[]): Promise<{ preferenceId: string, purchaseIds: string[] }> => {
+        if (!user) throw new Error('User not logged in')
+
+        // 1. First record the purchases as 'pending'
+        const purchaseIds = await purchaseMultiplePrompts(items.map(i => ({ id: i.id, price: i.price })))
+
+        // 2. Call the PostgreSQL RPC function instead of Edge Function
+        const { data: rpcData, error: rpcError } = await supabase.rpc('create_mp_preference_rpc', {
+            payload: {
+                items: items.map(item => ({
+                    title: item.title,
+                    unit_price: item.price,
+                    quantity: 1,
+                    currency_id: 'BRL'
+                })),
+                success_url: `${window.location.origin}/dashboard?payment=success`,
+                failure_url: `${window.location.origin}/dashboard?payment=fail`,
+                external_reference: purchaseIds[0] || null
+            }
+        })
+
+        if (rpcError) throw rpcError
+
+        const preferenceId = rpcData.id
+
+        // 3. Update the purchases with the preference ID
+        await supabase
+            .from('purchases')
+            .update({ mp_preference_id: preferenceId })
+            .in('id', purchaseIds)
+
+        return { preferenceId, purchaseIds }
+    }
+
     // Refresh purchases when admin status changes or on demand
     useEffect(() => {
         if (user) fetchPurchases(user.uid, isAdmin)
@@ -269,7 +305,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             user, isAdmin, login, register, logout,
             purchasePrompt, purchaseMultiplePrompts, confirmPurchase, getPurchases,
             getUserPurchasedPrompts, hasPurchased, purchases,
-            updateProfile, updatePassword
+            updateProfile, updatePassword, createMPPreference, supabase
         }}>
             {children}
         </AuthContext.Provider>
