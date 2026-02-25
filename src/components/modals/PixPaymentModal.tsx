@@ -4,7 +4,6 @@ import { X, CheckCircle2, Loader2 } from 'lucide-react'
 import type { Prompt } from '../../lib/data'
 import { useAuth } from '../../contexts/AuthContext'
 import MercadoPagoCheckout from './MercadoPagoCheckout'
-import { generatePixCode } from '../../lib/pixUtils'
 
 interface Props {
     items: Prompt[]
@@ -21,7 +20,6 @@ export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
     const [confirmedPurchaseIds, setConfirmedPurchaseIds] = useState<string[]>([])
     const isProcessing = useRef(false)
     const [pollingActive, setPollingActive] = useState(false)
-    const [showManualPix, setShowManualPix] = useState(false)
 
     const totalPrice = items.reduce((acc, item) => acc + item.price, 0)
 
@@ -191,44 +189,7 @@ export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
                                             </div>
                                         ) : preferenceId ? (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%' }}>
-                                                {showManualPix ? (
-                                                    <div style={{ textAlign: 'center' }}>
-                                                        <div style={{ background: 'white', padding: 12, borderRadius: 12, width: 'fit-content', margin: '0 auto 16px' }}>
-                                                            <img
-                                                                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(generatePixCode({
-                                                                    key: '18441332819',
-                                                                    beneficiaryName: 'Joaquim Carlos da Cruz',
-                                                                    city: 'Olimpia',
-                                                                    amount: totalPrice,
-                                                                    description: items.length > 1 ? `${items.length} Prompts` : items[0].title,
-                                                                    transactionId: 'PRM' + Math.floor(Date.now() / 1000).toString()
-                                                                }))}`}
-                                                                alt="QR Code Pix"
-                                                                style={{ width: 180, height: 180, display: 'block' }}
-                                                            />
-                                                        </div>
-                                                        <code style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', wordBreak: 'break-all', display: 'block', background: 'black', padding: 8, borderRadius: 8, marginBottom: 16 }}>
-                                                            {generatePixCode({
-                                                                key: '18441332819',
-                                                                beneficiaryName: 'Joaquim Carlos da Cruz',
-                                                                city: 'Olimpia',
-                                                                amount: totalPrice,
-                                                                description: items.length > 1 ? `${items.length} Prompts` : items[0].title,
-                                                                transactionId: 'PRM' + Math.floor(Date.now() / 1000).toString()
-                                                            })}
-                                                        </code>
-                                                        <button onClick={() => setShowManualPix(false)} style={{ background: 'none', border: 'none', color: '#009ee5', fontSize: 13, cursor: 'pointer', marginBottom: 12 }}>
-                                                            Voltar para Mercado Pago
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <MercadoPagoCheckout preferenceId={preferenceId} />
-                                                        <button onClick={() => setShowManualPix(true)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 12, cursor: 'pointer' }}>
-                                                            Problemas com o Mercado Pago? Pagar com Pix Direto
-                                                        </button>
-                                                    </>
-                                                )}
+                                                <MercadoPagoCheckout preferenceId={preferenceId} />
 
                                                 {mpError && (
                                                     <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: 12, color: '#ef4444', fontSize: 13, textAlign: 'center' }}>

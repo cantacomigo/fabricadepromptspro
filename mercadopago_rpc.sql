@@ -1,5 +1,9 @@
--- 1. Enable the HTTP extension (Requires Superuser or Dashboard SQL Editor)
 CREATE EXTENSION IF NOT EXISTS http;
+
+-- 1.5 Insert VIP Prompt for Subscription payment tracking
+INSERT INTO prompts (id, title, description, prompt_text, price, category, image_url)
+VALUES ('00000000-0000-0000-0000-000000000001', 'Assinatura VIP PRO', 'Acesso ilimitado por 30 dias', 'VIP', 49.90, 'VIP', 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&q=80&w=400')
+ON CONFLICT (id) DO NOTHING;
 
 -- 2. Create the preference creation function
 CREATE OR REPLACE FUNCTION create_mp_preference_rpc(
@@ -56,16 +60,32 @@ BEGIN
 
   payment_data := resp.content::jsonb;
 
-  -- If there's an approved payment, update the purchase record
-  IF (payment_data->'results'->0->>'status' = 'approved') THEN
-    UPDATE purchases
-    SET
-      status = 'confirmed',
-      mp_payment_id = payment_data->'results'->0->>'id'
-    WHERE id = arg_purchase_id;
+    -- If there's an approved payment, update the purchase record
+    IF (payment_data->'results'->0->>'status' = 'approved') THEN
+        -- Link the payment ID to ALL purchases with this preference ID
+        UPDATE purchases
+        SET
+            status = 'confirmed',
+            mp_payment_id = payment_data->'results'->0->>'id'
+        WHERE mp_preference_id = (arg_payload->>'preference_id');
 
-    RETURN jsonb_build_object('status', 'approved', 'id', payment_data->'results'->0->>'id');
-  END IF;
+        -- Check if any of these purchases are for the VIP Subscription
+        IF EXISTS (
+            SELECT 1 FROM purchases
+            WHERE mp_preference_id = (arg_payload->>'preference_id')
+            AND prompt_id = '00000000-0000-0000-0000-000000000001'
+        ) THEN
+            -- Activate the subscription for the user
+            -- Use the user_id from the first purchase found
+            PERFORM public.activate_subscription(
+                (SELECT user_id FROM purchases WHERE mp_preference_id = (arg_payload->>'preference_id') LIMIT 1),
+                payment_data->'results'->0->>'id',
+                30
+            );
+        END IF;
+
+        RETURN jsonb_build_object('status', 'approved', 'id', payment_data->'results'->0->>'id');
+    END IF;
 
   RETURN jsonb_build_object('status', 'pending');
 END;
