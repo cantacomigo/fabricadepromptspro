@@ -14,6 +14,7 @@ export default function SubModal({ isOpen, onClose }: Props) {
     const [loading, setLoading] = useState(false)
     const [success, setSuccess] = useState(false)
     const [preferenceId, setPreferenceId] = useState<string | null>(null)
+    const [purchaseId, setPurchaseId] = useState<string | null>(null)
     const [mpError, setMpError] = useState<string | null>(null)
     const [pollingActive, setPollingActive] = useState(false)
 
@@ -39,8 +40,9 @@ export default function SubModal({ isOpen, onClose }: Props) {
                 tags: ['vip', 'pro']
             }
 
-            const { preferenceId: prefId } = await createMPPreference([vipPrompt])
+            const { preferenceId: prefId, purchaseIds } = await createMPPreference([vipPrompt])
             setPreferenceId(prefId)
+            setPurchaseId(purchaseIds[0] || null)
             setPollingActive(true)
         } catch (err: any) {
             console.error('Subscription error:', err)
@@ -51,13 +53,16 @@ export default function SubModal({ isOpen, onClose }: Props) {
     }
 
     const checkStatus = useCallback(async (silent: boolean = false) => {
-        if (!preferenceId || success) return
+        if ((!preferenceId && !purchaseId) || success) return
         if (!silent) setLoading(true)
         setMpError(null)
 
         try {
             const { data, error } = await supabase.rpc('check_mp_payment_status_rpc', {
-                payload: { preference_id: preferenceId }
+                payload: {
+                    purchase_id: purchaseId,
+                    preference_id: preferenceId
+                }
             })
 
             if (error) {
@@ -81,7 +86,7 @@ export default function SubModal({ isOpen, onClose }: Props) {
         } finally {
             if (!silent) setLoading(false)
         }
-    }, [preferenceId, success, supabase])
+    }, [preferenceId, purchaseId, success, supabase])
 
     // Automatic polling every 5 seconds
     useEffect(() => {

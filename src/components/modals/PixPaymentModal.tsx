@@ -58,7 +58,10 @@ export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
 
         try {
             const { data, error: rpcError } = await supabase.rpc('check_mp_payment_status_rpc', {
-                payload: { preference_id: preferenceId }
+                payload: {
+                    purchase_id: confirmedPurchaseIds[0] || null,
+                    preference_id: preferenceId
+                }
             })
 
             if (rpcError) throw rpcError
