@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Sparkles, TrendingUp, Zap } from 'lucide-react'
 import { usePrompts } from '../contexts/PromptsContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useCart } from '../contexts/CartContext'
+import { useLocation } from 'react-router-dom'
 import PromptCard from '../components/gallery/PromptCard'
 import UnlockModal from '../components/modals/UnlockModal'
 import PixPaymentModal from '../components/modals/PixPaymentModal'
@@ -18,6 +19,7 @@ export default function Home() {
     const { hasPurchased, confirmPurchase } = useAuth()
     const { cartItems, setCartOpen, clearCart } = useCart()
     const navigate = useNavigate()
+    const location = useLocation()
     const [search, setSearch] = useState('')
     const [category, setCategory] = useState('Todos')
     const [selected, setSelected] = useState<Prompt | null>(null)
@@ -26,6 +28,18 @@ export default function Home() {
     const [lastPurchaseId, setLastPurchaseId] = useState<string | null>(null)
     const [viewImage, setViewImage] = useState<string | null>(null)
     const [isCartCheckout, setIsCartCheckout] = useState(false)
+
+    // Handle initial scroll to hash
+    useEffect(() => {
+        if (location.hash === '#como-funciona') {
+            const el = document.getElementById('como-funciona')
+            if (el) {
+                setTimeout(() => {
+                    el.scrollIntoView({ behavior: 'smooth' })
+                }, 100)
+            }
+        }
+    }, [location])
 
     const displayCategories = useMemo(() => ['Todos', ...categories], [categories])
 
@@ -153,6 +167,65 @@ export default function Home() {
                             </div>
                         ))}
                     </motion.div>
+                </div>
+            </div>
+
+            {/* How it Works Section */}
+            <div id="como-funciona" style={{ padding: '80px 24px', background: '#0a0a12', position: 'relative' }}>
+                <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+                    <div style={{ textAlign: 'center', marginBottom: 60 }}>
+                        <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, color: 'white', margin: '0 0 16px' }}>
+                            Como a Fábrica funciona?
+                        </h2>
+                        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16, maxWidth: 600, margin: '0 auto' }}>
+                            Desbloqueie seu potencial criativo em 3 passos simples.
+                        </p>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 32 }}>
+                        {[
+                            {
+                                icon: <Search size={24} color="#9333ea" />,
+                                title: "1. Explore e Escolha",
+                                desc: "Navegue por nossa galeria curada de prompts premium testados para Midjourney, DALL-E e mais."
+                            },
+                            {
+                                icon: <Zap size={24} color="#3b82f6" />,
+                                title: "2. Pagamento Instantâneo",
+                                desc: "Use Pix para um checkout ultra-rápido. Liberação automática em menos de 5 segundos."
+                            },
+                            {
+                                icon: <Sparkles size={24} color="#06b6d4" />,
+                                title: "3. Crie sua Obra-Prima",
+                                desc: "Copie o prompt desbloqueado, use na sua IA favorita e gere imagens de nível profissional."
+                            }
+                        ].map((step, i) => (
+                            <motion.div
+                                key={i}
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: i * 0.1 }}
+                                style={{
+                                    padding: 32, borderRadius: 20,
+                                    background: 'rgba(255,255,255,0.02)',
+                                    border: '1px solid rgba(255,255,255,0.06)',
+                                    textAlign: 'center'
+                                }}
+                            >
+                                <div style={{
+                                    width: 56, height: 56, borderRadius: 16,
+                                    background: 'rgba(255,255,255,0.05)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    margin: '0 auto 24px'
+                                }}>
+                                    {step.icon}
+                                </div>
+                                <h3 style={{ fontSize: 18, fontWeight: 700, color: 'white', margin: '0 0 12px' }}>{step.title}</h3>
+                                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, lineHeight: 1.6, margin: 0 }}>{step.desc}</p>
+                            </motion.div>
+                        ))}
+                    </div>
                 </div>
             </div>
 

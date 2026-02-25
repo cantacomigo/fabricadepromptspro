@@ -32,7 +32,7 @@ export default function Footer() {
                     <div style={{ display: 'flex', gap: 64, flexWrap: 'wrap' }}>
                         <FooterCol title="Plataforma" links={[
                             { label: 'Galeria', to: '/' },
-                            { label: 'Como funciona', to: '/' },
+                            { label: 'Como funciona', to: '/#como-funciona' },
                             { label: 'Preços', to: '/' },
                         ]} />
                         <FooterCol title="Conta" links={[
