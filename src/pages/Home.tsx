@@ -128,7 +128,7 @@ export default function Home() {
                         </h1>
 
                         <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: 'rgba(255,255,255,0.5)', margin: '0 auto 36px', maxWidth: 560, lineHeight: 1.7 }}>
-                            Desbloqueie prompts premium testados e aprovados para criar imagens extraordinárias com Midjourney, DALL-E e Stable Diffusion.
+                            Desbloqueie prompts premium testados e aprovados para extrair o máximo poder do ChatGPT e transformar suas conversas em resultados profissionais.
                         </p>
 
                         <div style={{ position: 'relative', maxWidth: 480, margin: '0 auto' }}>
@@ -187,7 +187,7 @@ export default function Home() {
                             {
                                 icon: <Search size={24} color="#9333ea" />,
                                 title: "1. Explore e Escolha",
-                                desc: "Navegue por nossa galeria curada de prompts premium testados para Midjourney, DALL-E e mais."
+                                desc: "Navegue por nossa galeria curada de prompts premium testados exclusivamente para o ChatGPT."
                             },
                             {
                                 icon: <Zap size={24} color="#3b82f6" />,
@@ -196,8 +196,8 @@ export default function Home() {
                             },
                             {
                                 icon: <Sparkles size={24} color="#06b6d4" />,
-                                title: "3. Crie sua Obra-Prima",
-                                desc: "Copie o prompt desbloqueado, use na sua IA favorita e gere imagens de nível profissional."
+                                title: "3. Copie e Utilize",
+                                desc: "Copie o prompt desbloqueado, cole no seu ChatGPT e obtenha respostas de nível profissional instantaneamente."
                             }
                         ].map((step, i) => (
                             <motion.div
