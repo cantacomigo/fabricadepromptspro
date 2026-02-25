@@ -8,7 +8,8 @@ import { useLocation } from 'react-router-dom'
 import PromptCard from '../components/gallery/PromptCard'
 import UnlockModal from '../components/modals/UnlockModal'
 import PixPaymentModal from '../components/modals/PixPaymentModal'
-import PromptRevealModal from '../components/modals/PromptRevealModal'
+import PromptDetailModal from '../components/modals/PromptDetailModal'
+import SubscriptionModal from '../components/modals/SubscriptionModal'
 import ImageLightbox from '../components/modals/ImageLightbox'
 import CartDrawer from '../components/cart/CartDrawer'
 import type { Prompt } from '../lib/data'
@@ -24,7 +25,8 @@ export default function Home() {
     const [category, setCategory] = useState('Todos')
     const [selected, setSelected] = useState<Prompt | null>(null)
     const [showPix, setShowPix] = useState(false)
-    const [revealPrompt, setRevealPrompt] = useState<Prompt | null>(null)
+    const [viewingPrompt, setViewingPrompt] = useState<Prompt | null>(null)
+    const [showingSubscriptionModal, setShowingSubscriptionModal] = useState(false)
     const [lastPurchaseId, setLastPurchaseId] = useState<string | null>(null)
     const [viewImage, setViewImage] = useState<string | null>(null)
     const [isCartCheckout, setIsCartCheckout] = useState(false)
@@ -65,7 +67,7 @@ export default function Home() {
 
     const handleUnlock = (prompt: Prompt) => {
         if (hasPurchased(prompt.id)) {
-            setRevealPrompt(prompt)
+            setViewingPrompt(prompt)
             return
         }
         setSelected(prompt)
@@ -248,47 +250,39 @@ export default function Home() {
                         </p>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: 32, flexWrap: 'wrap' }}>
+                        {/* Individual Prompt Card */}
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            whileInView={{ opacity: 1, scale: 1 }}
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             style={{
-                                width: '100%', maxWidth: 450, padding: '40px 32px', borderRadius: 24,
+                                width: '100%', maxWidth: 400, padding: '40px 32px', borderRadius: 24,
                                 background: 'rgba(255,255,255,0.03)',
-                                border: '2px solid rgba(147,51,234,0.3)',
-                                position: 'relative', overflow: 'hidden',
+                                border: '1px solid rgba(255,255,255,0.1)',
                                 textAlign: 'center'
                             }}
                         >
-                            <div style={{ position: 'absolute', top: 20, right: -30, background: '#9333ea', color: 'white', fontSize: 10, fontWeight: 800, padding: '4px 30px', transform: 'rotate(45deg)', textTransform: 'uppercase' }}>
-                                Melhor Valor
-                            </div>
-
-                            <h3 style={{ fontSize: 24, fontWeight: 700, color: 'white', marginBottom: 8 }}>Preço por Prompt</h3>
+                            <h3 style={{ fontSize: 24, fontWeight: 700, color: 'white', marginBottom: 8 }}>Prompt Individual</h3>
                             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4, marginBottom: 24 }}>
                                 <span style={{ fontSize: 16, color: 'rgba(255,255,255,0.5)' }}>A partir de</span>
                                 <span style={{ fontSize: 18, color: 'rgba(255,255,255,0.5)' }}>R$</span>
                                 <span style={{ fontSize: 48, fontWeight: 900, color: 'white' }}>4,90</span>
                             </div>
 
-                            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 24 }}>
-                                Escolha apenas os prompts que deseja. O valor é individual e varia de acordo com a complexidade técnica de cada um.
+                            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 32 }}>
+                                Perfeito para quem precisa de um empurrão específico para um projeto único.
                             </p>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 32, textAlign: 'left' }}>
                                 {[
                                     "Acesso Vitalício ao Prompt",
                                     "Instruções Passo a Passo",
-                                    "Variantes de Estilo Inclusas",
                                     "Suporte via WhatsApp",
-                                    "Atualizações Gratuitas",
-                                    "Sem Mensalidade ou Taxas Ocultas"
+                                    "Sem Mensalidade"
                                 ].map((item, idx) => (
                                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
-                                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(147,51,234,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <Check size={10} color="#9333ea" />
-                                        </div>
+                                        <Check size={16} color="#10b981" />
                                         {item}
                                     </div>
                                 ))}
@@ -301,6 +295,71 @@ export default function Home() {
                                 }}
                                 style={{
                                     width: '100%', padding: '16px', borderRadius: 12,
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    color: 'white', fontWeight: 700, fontSize: 16,
+                                    cursor: 'pointer'
+                                }}
+                                whileHover={{ background: 'rgba(255,255,255,0.1)' }}
+                            >
+                                Explorar Galeria
+                            </motion.button>
+                        </motion.div>
+
+                        {/* Pro Plan Card */}
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            whileInView={{ opacity: 1, scale: 1 }}
+                            viewport={{ once: true }}
+                            style={{
+                                width: '100%', maxWidth: 420, padding: '40px 32px', borderRadius: 24,
+                                background: 'rgba(147,51,234,0.05)',
+                                border: '2px solid rgba(147,51,234,0.3)',
+                                position: 'relative', overflow: 'hidden',
+                                textAlign: 'center', boxShadow: '0 0 40px rgba(147,51,234,0.1)'
+                            }}
+                        >
+                            <div style={{ position: 'absolute', top: 20, right: -30, background: '#9333ea', color: 'white', fontSize: 10, fontWeight: 800, padding: '4px 30px', transform: 'rotate(45deg)', textTransform: 'uppercase' }}>
+                                Acesso Total
+                            </div>
+
+                            <h3 style={{ fontSize: 24, fontWeight: 700, color: 'white', marginBottom: 8 }}>Plano VIP Pro</h3>
+                            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4, marginBottom: 24 }}>
+                                <span style={{ fontSize: 18, color: 'rgba(255,255,255,0.5)' }}>R$</span>
+                                <span style={{ fontSize: 48, fontWeight: 900, color: 'white' }}>49,90</span>
+                                <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>/mês</span>
+                            </div>
+
+                            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 32 }}>
+                                Desbloqueie **TODA a nossa biblioteca** de prompts instantaneamente por 30 dias.
+                            </p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 32, textAlign: 'left' }}>
+                                {[
+                                    "Acesso a 100% dos Prompts",
+                                    "Novos Prompts Semanais",
+                                    "Variantes Exclusivas",
+                                    "Prioridade no Suporte",
+                                    "Sem Limite de Cópia",
+                                    "Cancele a qualquer momento"
+                                ].map((item, idx) => (
+                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
+                                        <Check size={16} color="#9333ea" />
+                                        {item}
+                                    </div>
+                                ))}
+                            </div>
+
+                            <motion.button
+                                onClick={() => {
+                                    // if (!user) { // user is not defined in this scope, assuming it's from AuthContext
+                                    //     navigate('/auth')
+                                    //     return
+                                    // }
+                                    setShowingSubscriptionModal(true)
+                                }}
+                                style={{
+                                    width: '100%', padding: '16px', borderRadius: 12,
                                     background: 'linear-gradient(135deg, #9333ea, #3b82f6)',
                                     border: 'none', color: 'white', fontWeight: 700, fontSize: 16,
                                     cursor: 'pointer'
@@ -308,7 +367,7 @@ export default function Home() {
                                 whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(147,51,234,0.4)' }}
                                 whileTap={{ scale: 0.98 }}
                             >
-                                Explorar Galeria
+                                Assinar Agora
                             </motion.button>
                         </motion.div>
                     </div>
@@ -376,7 +435,12 @@ export default function Home() {
                 </AnimatePresence>
             </div>
 
-            {/* Modals & Cart */}
+            {/* Modals */}
+            <SubscriptionModal
+                isOpen={showingSubscriptionModal}
+                onClose={() => setShowingSubscriptionModal(false)}
+            />
+            {/* & Cart */}
             <CartDrawer onCheckout={handleCartCheckout} />
 
             <UnlockModal

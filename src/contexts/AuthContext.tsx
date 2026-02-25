@@ -19,6 +19,7 @@ interface AuthContextType {
     getUserPurchasedPrompts: () => Prompt[]
     hasPurchased: (promptId: string) => boolean
     purchases: Purchase[]
+    subscription: { status: string, expiry: string | null } | null
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -26,6 +27,7 @@ const AuthContext = createContext<AuthContextType | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null)
     const [purchases, setPurchases] = useState<Purchase[]>([])
+    const [subscription, setSubscription] = useState<{ status: string, expiry: string | null } | null>(null)
     const [isAdmin, setIsAdmin] = useState(false)
 
     const fetchProfile = useCallback(async (uid: string, email: string) => {
@@ -59,6 +61,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             setUser(userData)
             setIsAdmin(!!userData.isAdmin)
+            setSubscription(profile?.subscription_status ? {
+                status: profile.subscription_status,
+                expiry: profile.subscription_expiry
+            } : null)
             fetchPurchases(uid, !!userData.isAdmin)
         } catch (err) {
             console.error('Error fetching profile:', err)
@@ -291,6 +297,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const getPurchases = () => purchases
 
     const hasPurchased = (promptId: string) => {
+        const isSubscriber = subscription?.status === 'active' &&
+            (!subscription.expiry || new Date(subscription.expiry) > new Date())
+
+        if (isSubscriber || isAdmin) return true
+
         return purchases.some(p => p.promptId === promptId && p.status === 'confirmed')
     }
 
@@ -305,7 +316,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             user, isAdmin, login, register, logout,
             purchasePrompt, purchaseMultiplePrompts, confirmPurchase, getPurchases,
             getUserPurchasedPrompts, hasPurchased, purchases,
-            updateProfile, updatePassword, createMPPreference, supabase
+            updateProfile, updatePassword, createMPPreference, supabase,
+            subscription
         }}>
             {children}
         </AuthContext.Provider>
