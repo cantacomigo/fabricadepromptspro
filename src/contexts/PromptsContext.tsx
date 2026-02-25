@@ -16,6 +16,7 @@ interface PromptsContextType {
     userLikes: string[]
     addCategory: (name: string) => Promise<void>
     deleteCategory: (name: string) => Promise<void>
+    refreshPrompts: () => Promise<void>
 }
 
 const PromptsContext = createContext<PromptsContextType | null>(null)
@@ -76,14 +77,12 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
 
             if (error) throw error
 
-            // Fetch total confirmed sales
-            const { count, error: countError } = await supabase
-                .from('purchases')
-                .select('*', { count: 'exact', head: true })
-                .eq('status', 'confirmed')
+            // Fetch total confirmed sales using the new secure RPC
+            const { data: globalSales, error: countError } = await supabase
+                .rpc('get_total_confirmed_sales')
 
-            if (!countError && count !== null) {
-                setTotalSystemSales(count)
+            if (!countError && globalSales !== null) {
+                setTotalSystemSales(Number(globalSales))
             }
 
             // Map Supabase fields to our Prompt interface
@@ -278,7 +277,9 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
             addPrompt, updatePrompt, deletePrompt,
             incrementSales, totalSystemSales, ratePrompt, toggleLike,
             userLikes,
-            addCategory, deleteCategory
+            addCategory,
+            deleteCategory,
+            refreshPrompts: fetchPrompts
         }}>
             {children}
         </PromptsContext.Provider>

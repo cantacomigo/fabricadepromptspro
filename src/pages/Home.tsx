@@ -14,7 +14,7 @@ import type { Prompt } from '../lib/data'
 import { useNavigate } from 'react-router-dom'
 
 export default function Home() {
-    const { prompts, categories, incrementSales, totalSystemSales } = usePrompts()
+    const { prompts, categories, incrementSales, totalSystemSales, refreshPrompts } = usePrompts()
     const { hasPurchased, confirmPurchase } = useAuth()
     const { cartItems, setCartOpen, clearCart } = useCart()
     const navigate = useNavigate()
@@ -67,6 +67,7 @@ export default function Home() {
 
             setCartOpen(false)
             clearCart()
+            await refreshPrompts()
             alert('Parabéns! Seus prompts foram desbloqueados. Você já pode visualizá-los na galeria.')
         } catch (err) {
             console.error('Error confirming purchase:', err)
