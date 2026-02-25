@@ -44,7 +44,7 @@ export default function SubModal({ isOpen, onClose }: Props) {
             setPollingActive(true)
         } catch (err: any) {
             console.error('Subscription error:', err)
-            setMpError('Erro ao iniciar pagamento. Tente novamente.')
+            setMpError(`Erro: ${err?.message || err?.details || JSON.stringify(err)}`)
         } finally {
             setLoading(false)
         }
