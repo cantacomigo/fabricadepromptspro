@@ -59,19 +59,19 @@ export default function Home() {
     }
 
     const handlePaySuccess = async (purchaseIds: string[]) => {
-        // Confirm all in DB
-        for (const id of purchaseIds) {
-            await confirmPurchase(id)
-        }
+        try {
+            // Mark all items as confirmed in the DB
+            for (const id of purchaseIds) {
+                await confirmPurchase(id)
+            }
 
-        if (isCartCheckout) {
-            setRevealPrompt(cartItems[0])
+            setCartOpen(false)
             clearCart()
-        } else if (selected) {
-            await incrementSales(selected.id)
-            setRevealPrompt(selected)
+            alert('Parabéns! Seus prompts foram desbloqueados. Você já pode visualizá-los na galeria.')
+        } catch (err) {
+            console.error('Error confirming purchase:', err)
+            alert('Houve um problema ao liberar seu prompt. Por favor, entre em contato com o suporte.')
         }
-
         setShowPix(false)
         setSelected(null)
         setIsCartCheckout(false)

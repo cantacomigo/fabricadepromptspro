@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Check, CheckCircle2, Loader2, CreditCard } from 'lucide-react'
+import { X, CheckCircle2, Loader2 } from 'lucide-react'
 import type { Prompt } from '../../lib/data'
 import { useAuth } from '../../contexts/AuthContext'
-import { usePrompts } from '../../contexts/PromptsContext'
 import MercadoPagoCheckout from './MercadoPagoCheckout'
 
 interface Props {
@@ -13,70 +12,67 @@ interface Props {
 }
 
 export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
-    const { purchaseMultiplePrompts, purchases, createMPPreference, supabase } = useAuth()
-    const { incrementSales } = usePrompts()
-    const [purchaseIds, setPurchaseIds] = useState<string[]>([])
+    const { createMPPreference, supabase } = useAuth()
     const [mpLoading, setMpLoading] = useState(false)
     const [mpError, setMpError] = useState<string | null>(null)
     const [status, setStatus] = useState<'pending' | 'confirmed'>('pending')
     const [preferenceId, setPreferenceId] = useState<string | null>(null)
-    const [isProcessing, setIsProcessing] = useState(false)
+    const [confirmedPurchaseIds, setConfirmedPurchaseIds] = useState<string[]>([])
+    const isProcessing = useRef(false)
     const [pollingActive, setPollingActive] = useState(false)
 
     const totalPrice = items.reduce((acc, item) => acc + item.price, 0)
-    const mainPurchaseId = purchaseIds[0] || ''
 
-    // Start purchase when modal opens
     const handleMPCheckout = useCallback(async () => {
-        if (items.length === 0 || preferenceId || isProcessing) return
-        setIsProcessing(true)
+        if (!items.length || isProcessing.current || preferenceId) return
+        isProcessing.current = true
+
         setMpLoading(true)
         setMpError(null)
-        try {
-            const result = await createMPPreference(items)
-            setPreferenceId(result.preferenceId)
-            setPurchaseIds(result.purchaseIds)
-            setPollingActive(true) // Start polling once we have a preference
-        } catch (err: any) {
-            console.error('MP failed', err)
-            const msg = (err.message || '').toLowerCase()
-            const fullMsg = err.message || JSON.stringify(err)
 
-            if (msg.includes('rpc') || msg.includes('does not exist')) {
-                setMpError(`Erro técnico: Função RPC não encontrada (${fullMsg}). Você aplicou o arquivo no Supabase?`)
-            } else {
-                setMpError(`Falha ao iniciar Mercado Pago: ${fullMsg}`)
-            }
+        try {
+            const { preferenceId: prefId, purchaseIds } = await createMPPreference(items)
+            setPreferenceId(prefId)
+            setConfirmedPurchaseIds(purchaseIds)
+            setPollingActive(true)
+        } catch (err: any) {
+            console.error('Mercado Pago Init failed', err)
+            setMpError('Falha ao gerar link de pagamento. Tente novamente.')
         } finally {
             setMpLoading(false)
-            setIsProcessing(false)
+            isProcessing.current = false
         }
-    }, [items, preferenceId, isProcessing, createMPPreference])
+    }, [items, preferenceId, createMPPreference])
 
     useEffect(() => {
         handleMPCheckout()
     }, [handleMPCheckout])
 
-    const checkPaymentStatus = async (silentParam: boolean | any = false) => {
-        const silent = typeof silentParam === 'boolean' ? silentParam : false;
-        if (!mainPurchaseId || (status === 'confirmed' && !silent)) return
+    const checkPaymentStatus = useCallback(async (e?: React.MouseEvent | boolean) => {
+        const silent = typeof e === 'boolean' ? e : false
+        if (e && typeof e !== 'boolean') e.stopPropagation()
+        if (!preferenceId || (status === 'confirmed' && !silent)) return
+
         if (!silent) setMpLoading(true)
+        setMpError(null)
 
         try {
             const { data, error: rpcError } = await supabase.rpc('check_mp_payment_status_rpc', {
-                payload: { purchase_id: mainPurchaseId }
+                payload: { preference_id: preferenceId }
             })
+
             if (rpcError) throw rpcError
 
             if (data.status === 'approved') {
                 setStatus('confirmed')
                 setPollingActive(false)
-                // Increment sales for all
-                items.forEach(item => incrementSales(item.id))
+
+                // Trigger success callback with real purchase IDs
+                onSuccess(confirmedPurchaseIds.length > 0 ? confirmedPurchaseIds : items.map(i => i.id))
+
                 setTimeout(() => {
-                    onSuccess(purchaseIds)
                     onClose()
-                }, 3000)
+                }, 2000)
             } else if (data.status === 'error') {
                 if (!silent) setMpError(`Erro na verificação: ${data.message || 'Erro de rede no banco'}. Tente novamente em alguns segundos.`)
             } else {
@@ -88,9 +84,8 @@ export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
         } finally {
             if (!silent) setMpLoading(false)
         }
-    }
+    }, [preferenceId, status, confirmedPurchaseIds, items, onSuccess, onClose, supabase])
 
-    // Automatic polling every 5 seconds
     useEffect(() => {
         let interval: NodeJS.Timeout
         if (pollingActive && status === 'pending') {
@@ -99,7 +94,7 @@ export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
             }, 5000)
         }
         return () => { if (interval) clearInterval(interval) }
-    }, [pollingActive, status, mainPurchaseId])
+    }, [pollingActive, status, checkPaymentStatus])
 
     return (
         <AnimatePresence>
@@ -135,7 +130,6 @@ export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
                                 : '0 40px 120px rgba(0,0,0,0.9), 0 0 60px rgba(0,158,229,0.2)'
                         }}
                     >
-                        {/* Success state */}
                         <AnimatePresence mode="wait">
                             {status === 'confirmed' ? (
                                 <motion.div
@@ -160,7 +154,6 @@ export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
                                 </motion.div>
                             ) : (
                                 <motion.div key="payment" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    {/* Header */}
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                                         <div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
@@ -169,9 +162,7 @@ export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
                                                     Checkout Seguro
                                                 </span>
                                             </div>
-                                            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'white' }}>
-                                                Pagamento
-                                            </h2>
+                                            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'white' }}> Pagamento </h2>
                                         </div>
                                         <motion.button onClick={onClose}
                                             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: 'rgba(255,255,255,0.6)', cursor: 'pointer', padding: 6 }}
@@ -181,27 +172,7 @@ export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
                                         </motion.button>
                                     </div>
 
-                                    {/* Order Summary */}
                                     <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', marginBottom: 24 }}>
-                                        {items.length === 1 ? (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                                                <img src={items[0].imageUrl} alt="" style={{ width: 52, height: 52, borderRadius: 8, objectFit: 'cover' }} />
-                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div style={{ fontSize: 13, fontWeight: 600, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{items[0].title}</div>
-                                                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Prompt Premium</div>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div style={{ marginBottom: 12 }}>
-                                                <div style={{ fontSize: 13, fontWeight: 700, color: 'white', marginBottom: 8 }}>{items.length} itens no carrinho:</div>
-                                                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-                                                    {items.map(item => (
-                                                        <img key={item.id} src={item.imageUrl} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} />
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                        <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '12px 0' }} />
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>Total</span>
                                             <div style={{ fontSize: 20, fontWeight: 800, color: 'white', whiteSpace: 'nowrap' }}>
@@ -210,7 +181,6 @@ export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
                                         </div>
                                     </div>
 
-                                    {/* Mercado Pago Component */}
                                     <div style={{ minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         {mpLoading && !preferenceId ? (
                                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
@@ -220,19 +190,11 @@ export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
                                         ) : preferenceId ? (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%' }}>
                                                 <MercadoPagoCheckout preferenceId={preferenceId} />
-
                                                 {mpError && (
-                                                    <div style={{
-                                                        background: 'rgba(239,68,68,0.1)',
-                                                        border: '1px solid rgba(239,68,68,0.2)',
-                                                        borderRadius: 10, padding: 12,
-                                                        color: '#ef4444', fontSize: 13,
-                                                        textAlign: 'center'
-                                                    }}>
+                                                    <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: 12, color: '#ef4444', fontSize: 13, textAlign: 'center' }}>
                                                         {mpError}
                                                     </div>
                                                 )}
-
                                                 <button
                                                     onClick={checkPaymentStatus}
                                                     disabled={mpLoading}
@@ -250,23 +212,9 @@ export default function PixPaymentModal({ items, onClose, onSuccess }: Props) {
                                         ) : mpError ? (
                                             <div style={{ textAlign: 'center', padding: 20 }}>
                                                 <div style={{ color: '#ef4444', fontSize: 14, marginBottom: 12 }}>{mpError}</div>
-                                                <button
-                                                    onClick={handleMPCheckout}
-                                                    style={{
-                                                        background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                                                        color: 'white', padding: '10px 20px', borderRadius: 12, cursor: 'pointer',
-                                                        fontSize: 13, fontWeight: 600
-                                                    }}
-                                                >
-                                                    Tentar novamente
-                                                </button>
+                                                <button onClick={handleMPCheckout} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '10px 20px', borderRadius: 12, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}> Tentar novamente </button>
                                             </div>
                                         ) : null}
-                                    </div>
-
-                                    {/* Footer Info */}
-                                    <div style={{ marginTop: 24, padding: '12px 16px', borderRadius: 10, background: 'rgba(0,158,229,0.08)', border: '1px solid rgba(0,158,229,0.15)', fontSize: 12, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 1.5 }}>
-                                        🔒 Pagamento processado com segurança pelo Mercado Pago. Clique em verificar após concluir.
                                     </div>
                                 </motion.div>
                             )}
