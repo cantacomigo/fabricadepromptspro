@@ -265,12 +265,16 @@ export default function Home() {
                                 Melhor Valor
                             </div>
 
-                            <h3 style={{ fontSize: 24, fontWeight: 700, color: 'white', marginBottom: 8 }}>Pay-per-Prompt</h3>
+                            <h3 style={{ fontSize: 24, fontWeight: 700, color: 'white', marginBottom: 8 }}>Preço por Prompt</h3>
                             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4, marginBottom: 24 }}>
+                                <span style={{ fontSize: 16, color: 'rgba(255,255,255,0.5)' }}>A partir de</span>
                                 <span style={{ fontSize: 18, color: 'rgba(255,255,255,0.5)' }}>R$</span>
-                                <span style={{ fontSize: 48, fontWeight: 900, color: 'white' }}>9,90</span>
-                                <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>/médio</span>
+                                <span style={{ fontSize: 48, fontWeight: 900, color: 'white' }}>4,90</span>
                             </div>
+
+                            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 24 }}>
+                                Escolha apenas os prompts que deseja. O valor é individual e varia de acordo com a complexidade técnica de cada um.
+                            </p>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 32, textAlign: 'left' }}>
                                 {[
