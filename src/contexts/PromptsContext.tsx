@@ -37,7 +37,13 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
     async function fetchUserLikes() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
-            setUserLikes([])
+            // Load anonymous likes from localStorage
+            try {
+                const stored = localStorage.getItem('anon_likes')
+                setUserLikes(stored ? JSON.parse(stored) : [])
+            } catch {
+                setUserLikes([])
+            }
             return
         }
 
@@ -212,7 +218,6 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
 
     const toggleLike = async (promptId: string) => {
         const { data: { user } } = await supabase.auth.getUser()
-        if (!user) throw new Error('É necessário estar logado para curtir.')
 
         if (processingLikes.has(promptId)) return
 
@@ -223,6 +228,39 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
         setProcessingLikes(prev => new Set(prev).add(promptId))
 
         try {
+            if (!user) {
+                // Anonymous like via localStorage
+                if (isLiked) {
+                    const newLikes = userLikes.filter(id => id !== promptId)
+                    setUserLikes(newLikes)
+                    localStorage.setItem('anon_likes', JSON.stringify(newLikes))
+                    await supabase
+                        .from('prompts')
+                        .update({ likes_count: Math.max(0, (prompt.likesCount || 0) - 1) })
+                        .eq('id', promptId)
+                    setPrompts(prev => prev.map(p =>
+                        p.id === promptId
+                            ? { ...p, likesCount: Math.max(0, (p.likesCount || 0) - 1) }
+                            : p
+                    ))
+                } else {
+                    const newLikes = [...userLikes, promptId]
+                    setUserLikes(newLikes)
+                    localStorage.setItem('anon_likes', JSON.stringify(newLikes))
+                    await supabase
+                        .from('prompts')
+                        .update({ likes_count: (prompt.likesCount || 0) + 1 })
+                        .eq('id', promptId)
+                    setPrompts(prev => prev.map(p =>
+                        p.id === promptId
+                            ? { ...p, likesCount: (p.likesCount || 0) + 1 }
+                            : p
+                    ))
+                }
+                return
+            }
+
+            // Logged-in user: use DB
             if (isLiked) {
                 const { error: deleteError } = await supabase
                     .from('likes')
@@ -248,10 +286,8 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
                     .from('likes')
                     .insert([{ user_id: user.id, prompt_id: promptId }])
 
-                // 23505 is the error code for unique_violation in PostgreSQL
                 if (insertError && insertError.code !== '23505') throw insertError
 
-                // Even if it was a duplicate, we treat it as "liked" in the UI to sync
                 if (!insertError) {
                     await supabase
                         .from('prompts')
