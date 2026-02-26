@@ -1,20 +1,22 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BookOpen, ShoppingBag, Copy, Check, Calendar, DollarSign, Star } from 'lucide-react'
+import { BookOpen, ShoppingBag, Copy, Check, Calendar, DollarSign, Star, Zap, Clock, RefreshCw } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { usePrompts } from '../contexts/PromptsContext'
 import PromptRevealModal from '../components/modals/PromptRevealModal'
+import SubModal from '../components/modals/SubModal'
 import type { Prompt } from '../lib/data'
 
 export default function UserDashboard() {
     const { user, purchases } = useAuth()
     const { prompts } = usePrompts()
-    const [tab, setTab] = useState<'prompts' | 'purchases' | 'settings'>('prompts')
+    const [tab, setTab] = useState<'prompts' | 'purchases' | 'subscription' | 'settings'>('prompts')
     const [copied, setCopied] = useState<string | null>(null)
     const [revealPrompt, setRevealPrompt] = useState<Prompt | null>(null)
+    const [showSubModal, setShowSubModal] = useState(false)
 
     // Settings state
-    const { updateProfile, updatePassword } = useAuth()
+    const { updateProfile, updatePassword, subscription } = useAuth()
     const [newName, setNewName] = useState(user?.displayName || '')
     const [newPass, setNewPass] = useState('')
     const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error', msg: string } | null>(null)
@@ -114,6 +116,7 @@ export default function UserDashboard() {
                 {[
                     ['prompts', 'Meus Prompts', <BookOpen key="b" size={15} />],
                     ['purchases', 'Histórico', <ShoppingBag key="s" size={15} />],
+                    ['subscription', 'Assinatura', <Zap key="z" size={15} />],
                     ['settings', 'Configurações', <Star key="st" size={15} />]
                 ].map(([t, label, icon]) => (
                     <motion.button key={t as string} onClick={() => setTab(t as any)}
@@ -222,6 +225,122 @@ export default function UserDashboard() {
                     </motion.div>
                 )}
 
+                {tab === 'subscription' && (
+                    <motion.div key="subscription" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                        style={{ maxWidth: 600 }}
+                    >
+                        <div style={{ background: '#0f0f1a', borderRadius: 20, border: '1px solid rgba(255,255,255,0.07)', padding: 32, marginBottom: 20 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+                                <div style={{ width: 48, height: 48, borderRadius: '50%', background: subscription?.status === 'active' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Zap size={24} color={subscription?.status === 'active' ? '#10b981' : '#ef4444'} />
+                                </div>
+                                <div>
+                                    <h2 style={{ fontSize: 20, fontWeight: 800, color: 'white', margin: '0 0 4px' }}>Assinatura VIP Pro</h2>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <span style={{
+                                            padding: '3px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700,
+                                            background: subscription?.status === 'active' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                                            color: subscription?.status === 'active' ? '#10b981' : '#ef4444',
+                                            border: `1px solid ${subscription?.status === 'active' ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`
+                                        }}>
+                                            {subscription?.status === 'active' ? '● Ativa' : '● Inativa'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {subscription?.status === 'active' && subscription?.expiry ? (() => {
+                                const expiryDate = new Date(subscription.expiry)
+                                const now = new Date()
+                                const diffMs = expiryDate.getTime() - now.getTime()
+                                const daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)))
+                                const hoursLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)) % 24)
+
+                                return (
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                                        <div style={{ padding: '20px', borderRadius: 14, background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                                <Clock size={16} color="#10b981" />
+                                                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 600, textTransform: 'uppercase' }}>Tempo Restante</span>
+                                            </div>
+                                            <div style={{ fontSize: 28, fontWeight: 800, color: '#10b981' }}>{daysLeft} <span style={{ fontSize: 14, fontWeight: 600 }}>dias</span></div>
+                                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>e {hoursLeft} horas</div>
+                                        </div>
+
+                                        <div style={{ padding: '20px', borderRadius: 14, background: 'rgba(147,51,234,0.05)', border: '1px solid rgba(147,51,234,0.15)' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                                <Calendar size={16} color="#9333ea" />
+                                                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 600, textTransform: 'uppercase' }}>Expira em</span>
+                                            </div>
+                                            <div style={{ fontSize: 16, fontWeight: 700, color: 'white' }}>
+                                                {expiryDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                            </div>
+                                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
+                                                às {expiryDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })() : (
+                                <div style={{ padding: '40px 20px', textAlign: 'center', marginBottom: 24, borderRadius: 14, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                    <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+                                    <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>Sem assinatura ativa</div>
+                                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)' }}>Assine o plano VIP Pro para ter acesso ilimitado a todos os prompts</div>
+                                </div>
+                            )}
+
+                            <div style={{ display: 'flex', gap: 12 }}>
+                                {subscription?.status === 'active' ? (
+                                    <motion.button
+                                        onClick={() => setShowSubModal(true)}
+                                        style={{
+                                            flex: 1, padding: '14px', borderRadius: 12,
+                                            background: 'rgba(147,51,234,0.1)', border: '1px solid rgba(147,51,234,0.3)',
+                                            color: '#9333ea', fontWeight: 700, fontSize: 14,
+                                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                                        }}
+                                        whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                                    >
+                                        <RefreshCw size={16} /> Renovar Assinatura
+                                    </motion.button>
+                                ) : (
+                                    <motion.button
+                                        onClick={() => setShowSubModal(true)}
+                                        style={{
+                                            flex: 1, padding: '16px', borderRadius: 12,
+                                            background: 'linear-gradient(135deg, #9333ea, #3b82f6)',
+                                            border: 'none', color: 'white', fontWeight: 700, fontSize: 15,
+                                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                                        }}
+                                        whileHover={{ scale: 1.02, boxShadow: '0 0 20px rgba(147,51,234,0.3)' }}
+                                        whileTap={{ scale: 0.98 }}
+                                    >
+                                        <Zap size={18} /> Assinar VIP Pro — R$ 49,90
+                                    </motion.button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Benefits */}
+                        <div style={{ background: '#0f0f1a', borderRadius: 20, border: '1px solid rgba(255,255,255,0.07)', padding: 32 }}>
+                            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'white', marginBottom: 20 }}>Benefícios do Plano VIP Pro</h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                {[
+                                    { icon: '🚀', text: 'Downloads ilimitados de todos os prompts' },
+                                    { icon: '⚡', text: 'Acesso antecipado a novos prompts VIP' },
+                                    { icon: '🛡️', text: 'Suporte prioritário via WhatsApp' },
+                                    { icon: '🎨', text: 'Prompts exclusivos não disponíveis avulso' },
+                                ].map((item, i) => (
+                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', borderRadius: 12, background: 'rgba(255,255,255,0.02)' }}>
+                                        <span style={{ fontSize: 20 }}>{item.icon}</span>
+                                        <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>{item.text}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+
                 {tab === 'settings' && (
                     <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                         style={{ maxWidth: 500 }}
@@ -277,6 +396,7 @@ export default function UserDashboard() {
             </AnimatePresence>
 
             <PromptRevealModal prompt={revealPrompt} purchaseId={null} onClose={() => setRevealPrompt(null)} />
+            {showSubModal && <SubModal isOpen={showSubModal} onClose={() => setShowSubModal(false)} />}
         </div>
     )
 }

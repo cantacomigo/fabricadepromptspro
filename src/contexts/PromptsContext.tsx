@@ -86,22 +86,26 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
             }
 
             // Map Supabase fields to our Prompt interface
-            const mapped: Prompt[] = (data || []).map(p => ({
-                id: p.id,
-                title: p.title,
-                description: p.description,
-                prompt: p.prompt_text,
-                price: p.price,
-                category: p.category,
-                imageUrl: p.image_url,
-                tags: p.tags || [],
-                salesCount: p.sales_count,
-                likesCount: p.likes_count || 0,
-                rating: Number(p.rating),
-                ratingCount: 0,
-                createdAt: new Date(p.created_at).getTime(),
-                instructions: p.instructions
-            }))
+            // Filter out VIP subscription prompt from gallery
+            const VIP_PROMPT_ID = '00000000-0000-0000-0000-000000000001'
+            const mapped: Prompt[] = (data || [])
+                .filter(p => p.id !== VIP_PROMPT_ID)
+                .map(p => ({
+                    id: p.id,
+                    title: p.title,
+                    description: p.description,
+                    prompt: p.prompt_text,
+                    price: p.price,
+                    category: p.category,
+                    imageUrl: p.image_url,
+                    tags: p.tags || [],
+                    salesCount: p.sales_count,
+                    likesCount: p.likes_count || 0,
+                    rating: Number(p.rating),
+                    ratingCount: 0,
+                    createdAt: new Date(p.created_at).getTime(),
+                    instructions: p.instructions
+                }))
 
             setPrompts(mapped)
         } catch (err) {
