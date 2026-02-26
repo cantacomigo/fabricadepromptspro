@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from 'react'
+import { useState, useEffect, useCallback, createContext, useContext } from 'react'
 import type { Prompt } from '../lib/data'
 import { supabase } from '../lib/supabase'
 
@@ -32,6 +32,27 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         Promise.all([fetchPrompts(), fetchCategories(), fetchUserLikes()])
             .finally(() => setLoading(false))
+    }, [])
+
+    // Realtime subscription for likes_count auto-updates
+    useEffect(() => {
+        const channel = supabase
+            .channel('prompts-likes')
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'prompts' }, (payload: any) => {
+                const updated = payload.new
+                if (updated) {
+                    setPrompts(prev => prev.map(p =>
+                        p.id === updated.id
+                            ? { ...p, likesCount: updated.likes_count || 0, salesCount: updated.sales_count || 0 }
+                            : p
+                    ))
+                }
+            })
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
     }, [])
 
     async function fetchUserLikes() {
@@ -227,84 +248,45 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
 
         setProcessingLikes(prev => new Set(prev).add(promptId))
 
+        const delta = isLiked ? -1 : 1
+
         try {
+            // Optimistic UI update
+            setPrompts(prev => prev.map(p =>
+                p.id === promptId
+                    ? { ...p, likesCount: Math.max(0, (p.likesCount || 0) + delta) }
+                    : p
+            ))
+
             if (!user) {
-                // Anonymous like via localStorage
-                if (isLiked) {
-                    const newLikes = userLikes.filter(id => id !== promptId)
-                    setUserLikes(newLikes)
-                    localStorage.setItem('anon_likes', JSON.stringify(newLikes))
-                    await supabase
-                        .from('prompts')
-                        .update({ likes_count: Math.max(0, (prompt.likesCount || 0) - 1) })
-                        .eq('id', promptId)
-                    setPrompts(prev => prev.map(p =>
-                        p.id === promptId
-                            ? { ...p, likesCount: Math.max(0, (p.likesCount || 0) - 1) }
-                            : p
-                    ))
-                } else {
-                    const newLikes = [...userLikes, promptId]
-                    setUserLikes(newLikes)
-                    localStorage.setItem('anon_likes', JSON.stringify(newLikes))
-                    await supabase
-                        .from('prompts')
-                        .update({ likes_count: (prompt.likesCount || 0) + 1 })
-                        .eq('id', promptId)
-                    setPrompts(prev => prev.map(p =>
-                        p.id === promptId
-                            ? { ...p, likesCount: (p.likesCount || 0) + 1 }
-                            : p
-                    ))
-                }
-                return
-            }
-
-            // Logged-in user: use DB
-            if (isLiked) {
-                const { error: deleteError } = await supabase
-                    .from('likes')
-                    .delete()
-                    .eq('user_id', user.id)
-                    .eq('prompt_id', promptId)
-
-                if (deleteError) throw deleteError
-
-                await supabase
-                    .from('prompts')
-                    .update({ likes_count: Math.max(0, (prompt.likesCount || 0) - 1) })
-                    .eq('id', promptId)
-
-                setUserLikes(prev => prev.filter(id => id !== promptId))
-                setPrompts(prev => prev.map(p =>
-                    p.id === promptId
-                        ? { ...p, likesCount: Math.max(0, (p.likesCount || 0) - 1) }
-                        : p
-                ))
+                // Anonymous: localStorage
+                const newLikes = isLiked
+                    ? userLikes.filter(id => id !== promptId)
+                    : [...userLikes, promptId]
+                setUserLikes(newLikes)
+                localStorage.setItem('anon_likes', JSON.stringify(newLikes))
             } else {
-                const { error: insertError } = await supabase
-                    .from('likes')
-                    .insert([{ user_id: user.id, prompt_id: promptId }])
-
-                if (insertError && insertError.code !== '23505') throw insertError
-
-                if (!insertError) {
-                    await supabase
-                        .from('prompts')
-                        .update({ likes_count: (prompt.likesCount || 0) + 1 })
-                        .eq('id', promptId)
+                // Logged-in: DB
+                if (isLiked) {
+                    await supabase.from('likes').delete().eq('user_id', user.id).eq('prompt_id', promptId)
+                    setUserLikes(prev => prev.filter(id => id !== promptId))
+                } else {
+                    const { error: insertError } = await supabase.from('likes').insert([{ user_id: user.id, prompt_id: promptId }])
+                    if (insertError && insertError.code !== '23505') throw insertError
+                    setUserLikes(prev => prev.includes(promptId) ? prev : [...prev, promptId])
                 }
-
-                setUserLikes(prev => prev.includes(promptId) ? prev : [...prev, promptId])
-                setPrompts(prev => prev.map(p =>
-                    p.id === promptId && !isLiked
-                        ? { ...p, likesCount: (p.likesCount || 0) + (insertError ? 0 : 1) }
-                        : p
-                ))
             }
+
+            // Use RPC to update count (works for anon and auth)
+            await supabase.rpc('toggle_like_count', { p_prompt_id: promptId, p_delta: delta })
         } catch (err) {
+            // Revert optimistic update on error
+            setPrompts(prev => prev.map(p =>
+                p.id === promptId
+                    ? { ...p, likesCount: Math.max(0, (p.likesCount || 0) - delta) }
+                    : p
+            ))
             console.error('Error toggling like:', err)
-            throw err
         } finally {
             setProcessingLikes(prev => {
                 const next = new Set(prev)
