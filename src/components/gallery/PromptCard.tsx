@@ -149,15 +149,6 @@ export default function PromptCard({ prompt, onUnlock, isPurchased = false, onVi
                     >
                         <Heart size={18} fill={isLiked ? '#ef4444' : 'transparent'} strokeWidth={isLiked ? 0 : 2} />
                     </motion.button>
-
-                    <div style={{
-                        padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 600,
-                        background: `${catColor}30`, color: catColor,
-                        border: `1px solid ${catColor}50`,
-                        backdropFilter: 'blur(4px)'
-                    }}>
-                        {prompt.category}
-                    </div>
                 </div>
 
                 {/* Image badges and status handles here */}
