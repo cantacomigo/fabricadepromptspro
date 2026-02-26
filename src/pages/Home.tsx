@@ -179,6 +179,67 @@ export default function Home() {
                 </div>
             </div>
 
+            {/* Main Gallery */}
+            <div id="galeria" style={{ maxWidth: 1280, margin: '0 auto', padding: '40px 24px 80px' }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 32, flexWrap: 'wrap', overflowX: 'auto', paddingBottom: 4 }}>
+                    {displayCategories.map(cat => (
+                        <motion.button
+                            key={cat}
+                            onClick={() => setCategory(cat)}
+                            style={{
+                                padding: '8px 18px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                                background: category === cat ? 'linear-gradient(135deg, #9333ea, #3b82f6)' : 'rgba(255,255,255,0.05)',
+                                border: category === cat ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                                color: category === cat ? 'white' : 'rgba(255,255,255,0.6)',
+                                transition: 'all 0.2s'
+                            }}
+                            whileHover={{ scale: 1.03 }}
+                            whileTap={{ scale: 0.97 }}
+                        >
+                            {cat}
+                        </motion.button>
+                    ))}
+                </div>
+
+                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginBottom: 24 }}>
+                    {filtered.length} {filtered.length === 1 ? 'prompt encontrado' : 'prompts encontrados'}
+                    {search && ` para "${search}"`}
+                </div>
+
+                <AnimatePresence mode="wait">
+                    {filtered.length > 0 ? (
+                        <motion.div
+                            key={category + search}
+                            variants={staggerChildren}
+                            initial="initial"
+                            animate="animate"
+                            style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                                gap: 20
+                            }}
+                        >
+                            {filtered.map(prompt => (
+                                <PromptCard
+                                    key={prompt.id}
+                                    prompt={prompt}
+                                    onUnlock={handleUnlock}
+                                    isPurchased={hasPurchased(prompt.id)}
+                                    onViewImage={setViewImage}
+                                />
+                            ))}
+                        </motion.div>
+                    ) : (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: 'center', padding: '80px 20px' }}>
+                            <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
+                            <div style={{ fontSize: 18, fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>Nenhum prompt encontrado</div>
+                            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.3)' }}>Tente outra categoria ou termo de busca</div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+
             {/* How it Works Section */}
             <div id="como-funciona" style={{ padding: '80px 24px', background: '#0a0a12', position: 'relative' }}>
                 <div style={{ maxWidth: 1280, margin: '0 auto' }}>
@@ -374,66 +435,7 @@ export default function Home() {
                 </div>
             </div>
 
-            {/* Main Content */}
-            <div id="galeria" style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px 80px' }}>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 32, flexWrap: 'wrap', overflowX: 'auto', paddingBottom: 4 }}>
-                    {displayCategories.map(cat => (
-                        <motion.button
-                            key={cat}
-                            onClick={() => setCategory(cat)}
-                            style={{
-                                padding: '8px 18px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                                whiteSpace: 'nowrap',
-                                background: category === cat ? 'linear-gradient(135deg, #9333ea, #3b82f6)' : 'rgba(255,255,255,0.05)',
-                                border: category === cat ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                                color: category === cat ? 'white' : 'rgba(255,255,255,0.6)',
-                                transition: 'all 0.2s'
-                            }}
-                            whileHover={{ scale: 1.03 }}
-                            whileTap={{ scale: 0.97 }}
-                        >
-                            {cat}
-                        </motion.button>
-                    ))}
-                </div>
 
-                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginBottom: 24 }}>
-                    {filtered.length} {filtered.length === 1 ? 'prompt encontrado' : 'prompts encontrados'}
-                    {search && ` para "${search}"`}
-                </div>
-
-                <AnimatePresence mode="wait">
-                    {filtered.length > 0 ? (
-                        <motion.div
-                            key={category + search}
-                            variants={staggerChildren}
-                            initial="initial"
-                            animate="animate"
-                            style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                                gap: 20
-                            }}
-                        >
-                            {filtered.map(prompt => (
-                                <PromptCard
-                                    key={prompt.id}
-                                    prompt={prompt}
-                                    onUnlock={handleUnlock}
-                                    isPurchased={hasPurchased(prompt.id)}
-                                    onViewImage={setViewImage}
-                                />
-                            ))}
-                        </motion.div>
-                    ) : (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: 'center', padding: '80px 20px' }}>
-                            <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
-                            <div style={{ fontSize: 18, fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>Nenhum prompt encontrado</div>
-                            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.3)' }}>Tente outra categoria ou termo de busca</div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
 
             {/* Modals */}
             <SubModal
