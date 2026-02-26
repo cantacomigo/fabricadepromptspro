@@ -315,7 +315,7 @@ export default function UserDashboard() {
                                         whileHover={{ scale: 1.02, boxShadow: '0 0 20px rgba(147,51,234,0.3)' }}
                                         whileTap={{ scale: 0.98 }}
                                     >
-                                        <Zap size={18} /> Assinar VIP Pro — R$ 49,90
+                                        <Zap size={18} /> Assinar VIP Pro — R$ 34,90
                                     </motion.button>
                                 )}
                             </div>

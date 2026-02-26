@@ -1,12 +1,12 @@
 -- ==========================================================
--- RPC PARA CURTIDAS ANÔNIMAS (sem necessidade de login)
--- Execute no SQL Editor do Supabase
+-- RPC PARA CURTIDAS ANÔNIMAS + REALTIME
+-- Execute TUDO no SQL Editor do Supabase
 -- ==========================================================
 
--- Drop old versions
+-- 1. Drop versões anteriores
 DROP FUNCTION IF EXISTS toggle_like_count(uuid, integer);
 
--- Função para incrementar/decrementar likes_count em prompts
+-- 2. Função para incrementar/decrementar likes_count
 -- Pode ser chamada por qualquer pessoa (anon ou autenticada)
 CREATE OR REPLACE FUNCTION toggle_like_count(
   p_prompt_id UUID,
@@ -18,3 +18,6 @@ BEGIN
   WHERE id = p_prompt_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 3. Ativar Realtime na tabela prompts (atualização automática)
+ALTER PUBLICATION supabase_realtime ADD TABLE prompts;

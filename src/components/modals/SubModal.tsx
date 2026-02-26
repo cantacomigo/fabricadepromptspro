@@ -27,7 +27,7 @@ export default function SubModal({ isOpen, onClose }: Props) {
             const vipPrompt = {
                 id: '00000000-0000-0000-0000-000000000001',
                 title: 'Assinatura VIP PRO (30 Dias)',
-                price: 49.90,
+                price: 34.90,
                 description: 'Acesso ilimitado a todos os prompts',
                 category: 'VIP',
                 prompt: 'VIP',
@@ -196,7 +196,7 @@ export default function SubModal({ isOpen, onClose }: Props) {
                                         <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 24, marginBottom: 32, textAlign: 'left' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                                                 <span style={{ color: 'white', fontWeight: 600 }}>Plano 30 Dias</span>
-                                                <span style={{ color: 'white', fontSize: 20, fontWeight: 800 }}>R$ 49,90</span>
+                                                <span style={{ color: 'white', fontSize: 20, fontWeight: 800 }}>R$ 34,90</span>
                                             </div>
 
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

@@ -387,7 +387,7 @@ export default function Home() {
                             <h3 style={{ fontSize: 24, fontWeight: 700, color: 'white', marginBottom: 8 }}>Plano VIP Pro</h3>
                             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4, marginBottom: 24 }}>
                                 <span style={{ fontSize: 18, color: 'rgba(255,255,255,0.5)' }}>R$</span>
-                                <span style={{ fontSize: 48, fontWeight: 900, color: 'white' }}>49,90</span>
+                                <span style={{ fontSize: 48, fontWeight: 900, color: 'white' }}>34,90</span>
                                 <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>/mês</span>
                             </div>
 

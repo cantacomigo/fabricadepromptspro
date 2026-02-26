@@ -8,7 +8,7 @@ CREATE EXTENSION IF NOT EXISTS http;
 
 -- 2. Insert VIP Prompt for Subscription payment tracking
 INSERT INTO prompts (id, title, description, prompt_text, price, category, image_url)
-VALUES ('00000000-0000-0000-0000-000000000001', 'Assinatura VIP PRO', 'Acesso ilimitado por 30 dias', 'VIP', 49.90, 'VIP', 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&q=80&w=400')
+VALUES ('00000000-0000-0000-0000-000000000001', 'Assinatura VIP PRO', 'Acesso ilimitado por 30 dias', 'VIP', 34.90, 'VIP', 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&q=80&w=400')
 ON CONFLICT (id) DO NOTHING;
 
 -- 3. Drop old versions to avoid conflicts
