@@ -22,12 +22,20 @@ interface PromptsContextType {
 const PromptsContext = createContext<PromptsContextType | null>(null)
 
 export function PromptsProvider({ children }: { children: React.ReactNode }) {
-    const [prompts, setPrompts] = useState<Prompt[]>([])
-    const [categories, setCategories] = useState<string[]>([])
+    const [prompts, setPrompts] = useState<Prompt[]>(() => {
+        const cached = localStorage.getItem('cached_prompts')
+        return cached ? JSON.parse(cached) : []
+    })
+    const [categories, setCategories] = useState<string[]>(() => {
+        const cached = localStorage.getItem('cached_categories')
+        return cached ? JSON.parse(cached) : []
+    })
     const [userLikes, setUserLikes] = useState<string[]>([])
-    const [totalSystemSales, setTotalSystemSales] = useState(0)
+    const [totalSystemSales, setTotalSystemSales] = useState(() => {
+        return Number(localStorage.getItem('cached_total_sales') || 0)
+    })
     const [processingLikes, setProcessingLikes] = useState<Set<string>>(new Set())
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(prompts.length === 0)
 
     useEffect(() => {
         Promise.all([fetchPrompts(), fetchCategories(), fetchUserLikes()])
@@ -89,7 +97,9 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
                 .order('name')
 
             if (error) throw error
-            setCategories((data || []).map(c => c.name))
+            const catNames = (data || []).map(c => c.name)
+            setCategories(catNames)
+            localStorage.setItem('cached_categories', JSON.stringify(catNames))
         } catch (err) {
             console.error('Error loading categories:', err)
         }
@@ -110,6 +120,7 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
 
             if (!countError && globalSales !== null) {
                 setTotalSystemSales(Number(globalSales))
+                localStorage.setItem('cached_total_sales', globalSales.toString())
             }
 
             // Map Supabase fields to our Prompt interface
@@ -135,6 +146,7 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
                 }))
 
             setPrompts(mapped)
+            localStorage.setItem('cached_prompts', JSON.stringify(mapped))
         } catch (err) {
             console.error('Error loading prompts from Supabase:', err)
             // Log specific error details if available
