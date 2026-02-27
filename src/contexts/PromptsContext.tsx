@@ -147,6 +147,27 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
 
             setPrompts(mapped)
             localStorage.setItem('cached_prompts', JSON.stringify(mapped))
+
+            // Dynamic Preloading of top 6 images
+            if (mapped.length > 0) {
+                const topImages = mapped.slice(0, 6).map(p => {
+                    const src = p.imageUrl
+                    const isUnsplash = src.includes('images.unsplash.com')
+                    return isUnsplash ? `${src.split('?')[0]}?w=400&q=50&auto=format&fit=crop` : src
+                })
+
+                topImages.forEach(src => {
+                    if (!document.querySelector(`link[href="${src}"]`)) {
+                        const link = document.createElement('link')
+                        link.rel = 'preload'
+                        link.as = 'image'
+                        link.href = src
+                        // @ts-ignore
+                        link.fetchpriority = 'high'
+                        document.head.appendChild(link)
+                    }
+                })
+            }
         } catch (err) {
             console.error('Error loading prompts from Supabase:', err)
             // Log specific error details if available
