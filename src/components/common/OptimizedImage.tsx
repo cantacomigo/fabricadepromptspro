@@ -25,20 +25,20 @@ export default function OptimizedImage({
     // Generate optimized URLs if it's Unsplash, otherwise use as-is
     const isUnsplash = src.includes('images.unsplash.com')
 
-    // Main image - Absolute minimal quality for speed
+    // Main image - Balanced quality for reliability (higher than q=40)
     const mainSrc = isUnsplash
-        ? `${src.split('?')[0]}?w=400&q=40&auto=format&fit=crop`
+        ? `${src.split('?')[0]}?w=500&q=60&auto=format&fit=crop`
         : src
 
     // Low Quality Image Placeholder: tiny, low quality, blurred
     const placeholderSrc = isUnsplash
-        ? `${src.split('?')[0]}?w=50&q=10&auto=format&fit=crop&blur=10`
+        ? `${src.split('?')[0]}?w=50&q=20&auto=format&fit=crop&blur=15`
         : null
 
-    // Responsive srcset - simplified to avoid over-fetching
+    // Responsive srcset - updated to match new base quality
     const srcSet = isUnsplash ? `
-        ${src.split('?')[0]}?w=400&q=40&auto=format&fit=crop 400w,
-        ${src.split('?')[0]}?w=800&q=45&auto=format&fit=crop 800w
+        ${src.split('?')[0]}?w=400&q=50&auto=format&fit=crop 400w,
+        ${src.split('?')[0]}?w=800&q=60&auto=format&fit=crop 800w
     ` : undefined
 
     // Reset state if src changes
@@ -53,11 +53,11 @@ export default function OptimizedImage({
             width: '100%',
             aspectRatio,
             overflow: 'hidden',
-            background: 'rgba(255,255,255,0.02)',
+            background: 'rgba(255,255,255,0.03)', // Faint background to avoid "pure black"
             ...style
         }}>
-            {/* Blur-up Placeholder (Unsplash only) - Instant Display */}
-            {!isLoaded && !error && placeholderSrc && (
+            {/* Blur-up Placeholder (Unsplash only) - Layered behind */}
+            {!error && placeholderSrc && (
                 <img
                     src={placeholderSrc}
                     alt=""
@@ -70,13 +70,14 @@ export default function OptimizedImage({
                         objectFit,
                         filter: 'blur(10px)',
                         transform: 'scale(1.1)',
-                        opacity: 0.7,
-                        zIndex: 1
+                        opacity: isLoaded ? 0 : 0.7,
+                        zIndex: 1,
+                        transition: 'opacity 0.4s ease-out'
                     }}
                 />
             )}
 
-            {/* Skeleton CSS Shimmer */}
+            {/* Skeleton Shimmer - Only visible before image starts loading */}
             {!isLoaded && !error && (
                 <div className="shimmer" style={{
                     position: 'absolute',
@@ -103,7 +104,7 @@ export default function OptimizedImage({
                 </div>
             )}
 
-            {/* Actual Image - No Framer Motion for instant start */}
+            {/* Actual Image - Resilient layering */}
             {!error && (
                 <img
                     src={mainSrc}
@@ -121,9 +122,9 @@ export default function OptimizedImage({
                         objectFit,
                         display: 'block',
                         position: 'relative',
-                        zIndex: isLoaded ? 4 : 0,
+                        zIndex: 4,
                         opacity: isLoaded ? 1 : 0,
-                        transition: priority ? 'none' : 'opacity 0.2s ease-out'
+                        transition: 'opacity 0.3s ease-out'
                     }}
                 />
             )}

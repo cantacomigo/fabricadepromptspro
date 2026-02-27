@@ -166,7 +166,7 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
                         const src = p.imageUrl || ''
                         if (!src) return null
                         const isUnsplash = src.includes('images.unsplash.com')
-                        return isUnsplash ? `${src.split('?')[0]}?w=400&q=40&auto=format&fit=crop` : src
+                        return isUnsplash ? `${src.split('?')[0]}?w=500&q=60&auto=format&fit=crop` : src
                     }).filter(Boolean) as string[]
 
                     topImages.forEach(src => {
