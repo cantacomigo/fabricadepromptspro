@@ -140,27 +140,51 @@ export default function PromptRevealModal({ prompt, purchaseId: _pid, onClose }:
 
                             {/* Step-by-Step Instructions */}
                             <div style={{ marginBottom: 24, padding: '20px', borderRadius: 16, background: 'rgba(147,51,234,0.05)', border: '1px solid rgba(147,51,234,0.2)' }}>
-                                <div style={{ fontSize: 13, color: '#9333ea', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <Star size={14} fill="#9333ea" /> Instruções Passo a Passo
+                                <div style={{ fontSize: 13, color: '#9333ea', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <Star size={14} fill="#9333ea" /> Como gerar suas fotos com o ChatGPT
                                 </div>
-                                <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
-                                    {prompt.instructions || (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                            <div style={{ display: 'flex', gap: 10 }}>
-                                                <span style={{ color: '#9333ea', fontWeight: 800 }}>1.</span>
-                                                <span>Abra o seu <b>ChatGPT</b> (preferencialmente versão Plus/GPT-4 para melhores resultados de imagem).</span>
-                                            </div>
-                                            <div style={{ display: 'flex', gap: 10 }}>
-                                                <span style={{ color: '#9333ea', fontWeight: 800 }}>2.</span>
-                                                <span>Cole o prompt copiado acima exatamente como está.</span>
-                                            </div>
-                                            <div style={{ display: 'flex', gap: 10 }}>
-                                                <span style={{ color: '#9333ea', fontWeight: 800 }}>3.</span>
-                                                <span>Caso queira ajustar, mude apenas os termos entre colchetes ou as palavras-chave principais.</span>
-                                            </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    {[
+                                        { n: '1', icon: '📱', text: <span>Abra o <b style={{ color: 'white' }}>ChatGPT</b></span> },
+                                        { n: '2', icon: '🔗', text: <span>Conecte sua conta</span> },
+                                        { n: '3', icon: '📋', text: <span>Copie o <b style={{ color: 'white' }}>Prompt deste Pack</b> <span style={{ color: '#ef4444' }}>(copie o prompt inteiro! Não pode faltar nada)</span></span> },
+                                        { n: '4', icon: '↩️', text: <span>Volte para o <b style={{ color: 'white' }}>ChatGPT</b></span> },
+                                        { n: '5', icon: '🤳', text: <span>Bata uma <b style={{ color: 'white' }}>foto do seu rosto</b></span> },
+                                        { n: '6', icon: '🚀', text: <span>Cole o prompt e <b style={{ color: 'white' }}>envie junto com a sua foto</b></span> },
+                                    ].map(step => (
+                                        <div key={step.n} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                                            <div style={{
+                                                minWidth: 26, height: 26, borderRadius: '50%',
+                                                background: 'linear-gradient(135deg, #9333ea, #3b82f6)',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                fontSize: 12, fontWeight: 800, color: 'white', flexShrink: 0
+                                            }}>{step.n}</div>
+                                            <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', lineHeight: 1.6, paddingTop: 3 }}>
+                                                {step.icon} {step.text}
+                                            </span>
                                         </div>
-                                    )}
+                                    ))}
                                 </div>
+
+                                {/* Ilustração */}
+                                <div style={{
+                                    marginTop: 20, padding: '14px 16px', borderRadius: 12,
+                                    background: 'rgba(255,255,255,0.03)',
+                                    border: '1px solid rgba(255,255,255,0.08)',
+                                    display: 'flex', alignItems: 'center', gap: 12
+                                }}>
+                                    <span style={{ fontSize: 28 }}>📸</span>
+                                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
+                                        <b style={{ color: 'rgba(255,255,255,0.8)' }}>Desse jeito:</b><br />
+                                        Foto do seu rosto + Prompt colado = Imagem gerada com o seu rosto!
+                                    </div>
+                                </div>
+
+                                {prompt.instructions && (
+                                    <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(147,51,234,0.15)', fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                                        {prompt.instructions}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Rating */}
