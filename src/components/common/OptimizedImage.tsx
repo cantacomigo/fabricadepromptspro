@@ -22,19 +22,25 @@ export default function OptimizedImage({
     const [isLoaded, setIsLoaded] = useState(false)
     const [error, setError] = useState(false)
 
-    // Generate optimized Unsplash URLs
-    // Main image: format, good quality, specific width
-    const mainSrc = `${src.split('?')[0]}?w=800&q=75&auto=format&fit=crop`
+    // Generate optimized URLs if it's Unsplash, otherwise use as-is
+    const isUnsplash = src.includes('images.unsplash.com')
+
+    // Main image
+    const mainSrc = isUnsplash
+        ? `${src.split('?')[0]}?w=800&q=75&auto=format&fit=crop`
+        : src
 
     // Low Quality Image Placeholder: tiny, low quality, blurred
-    const placeholderSrc = `${src.split('?')[0]}?w=50&q=10&auto=format&fit=crop&blur=10`
+    const placeholderSrc = isUnsplash
+        ? `${src.split('?')[0]}?w=50&q=10&auto=format&fit=crop&blur=10`
+        : null
 
-    // Responsive srcset for retina displays
-    const srcSet = `
+    // Responsive srcset for retina displays (only for Unsplash)
+    const srcSet = isUnsplash ? `
         ${src.split('?')[0]}?w=400&q=70&auto=format&fit=crop 400w,
         ${src.split('?')[0]}?w=800&q=75&auto=format&fit=crop 800w,
         ${src.split('?')[0]}?w=1200&q=70&auto=format&fit=crop 1200w
-    `
+    ` : undefined
 
     // Reset state if src changes
     useEffect(() => {
@@ -51,8 +57,8 @@ export default function OptimizedImage({
             background: 'rgba(255,255,255,0.02)',
             ...style
         }}>
-            {/* Blur-up Placeholder */}
-            {!isLoaded && !error && (
+            {/* Blur-up Placeholder (Unsplash only) */}
+            {!isLoaded && !error && placeholderSrc && (
                 <img
                     src={placeholderSrc}
                     alt=""
@@ -64,7 +70,7 @@ export default function OptimizedImage({
                         height: '100%',
                         objectFit,
                         filter: 'blur(10px)',
-                        transform: 'scale(1.1)', // Prevent white edges from blur
+                        transform: 'scale(1.1)',
                         opacity: 0.7,
                         zIndex: 1
                     }}
@@ -119,7 +125,7 @@ export default function OptimizedImage({
                 <motion.img
                     src={mainSrc}
                     srcSet={srcSet}
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    sizes={isUnsplash ? "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" : undefined}
                     alt={alt}
                     loading={priority ? "eager" : "lazy"}
                     decoding={priority ? "sync" : "async"}

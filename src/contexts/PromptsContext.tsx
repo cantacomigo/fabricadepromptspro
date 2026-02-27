@@ -136,7 +136,11 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
 
             setPrompts(mapped)
         } catch (err) {
-            console.error('Error loading prompts:', err)
+            console.error('Error loading prompts from Supabase:', err)
+            // Log specific error details if available
+            if (err && typeof err === 'object' && 'message' in err) {
+                console.error('Supabase Error Message:', err.message)
+            }
         } finally {
             setLoading(false)
         }

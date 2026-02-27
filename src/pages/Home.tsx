@@ -16,7 +16,7 @@ import type { Prompt } from '../lib/data'
 import { useNavigate } from 'react-router-dom'
 
 export default function Home() {
-    const { prompts, categories, incrementSales, totalSystemSales, refreshPrompts } = usePrompts()
+    const { prompts, categories, incrementSales, totalSystemSales, refreshPrompts, loading } = usePrompts()
     const { hasPurchased, confirmPurchase } = useAuth()
     const { cartItems, setCartOpen, clearCart } = useCart()
     const navigate = useNavigate()
@@ -208,7 +208,30 @@ export default function Home() {
                 </div>
 
                 <AnimatePresence mode="wait">
-                    {filtered.length > 0 ? (
+                    {loading ? (
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                            gap: 20
+                        }}>
+                            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                                <div key={i} style={{ borderRadius: 16, overflow: 'hidden', background: '#0f0f1a', border: '1px solid rgba(255,255,255,0.07)', height: 400 }}>
+                                    <div style={{ aspectRatio: '4/5', background: 'rgba(255,255,255,0.03)', position: 'relative' }}>
+                                        <motion.div
+                                            style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.05) 50%, transparent 75%)', backgroundSize: '200% 100%' }}
+                                            animate={{ backgroundPosition: ['200% 0', '-200% 0'] }}
+                                            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                                        />
+                                    </div>
+                                    <div style={{ padding: 16 }}>
+                                        <div style={{ height: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 4, width: '70%', marginBottom: 10 }} />
+                                        <div style={{ height: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 4, width: '90%', marginBottom: 6 }} />
+                                        <div style={{ height: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 4, width: '40%' }} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : filtered.length > 0 ? (
                         <motion.div
                             key={category + search}
                             variants={staggerChildren}
