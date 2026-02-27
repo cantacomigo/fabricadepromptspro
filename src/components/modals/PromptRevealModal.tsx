@@ -175,8 +175,7 @@ export default function PromptRevealModal({ prompt, purchaseId: _pid, onClose }:
                                 }}>
                                     <span style={{ fontSize: 28 }}>📸</span>
                                     <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
-                                        <b style={{ color: 'rgba(255,255,255,0.8)' }}>Desse jeito:</b><br />
-                                        Foto do seu rosto + Prompt colado = Imagem gerada com o seu rosto!
+                                        Envie uma foto sua de boa qualidade
                                     </div>
                                 </div>
 
