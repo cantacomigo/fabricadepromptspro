@@ -1,4 +1,23 @@
-import { useState, useEffect, useCallback, createContext, useContext } from 'react'
+import { useState, useEffect, createContext, useContext } from 'react'
+
+// Safe localStorage helper that handles QuotaExceededError gracefully
+function safeLocalStorageSet(key: string, value: string) {
+    try {
+        localStorage.setItem(key, value)
+    } catch (e) {
+        // Quota exceeded — clear all cached data and try once more
+        console.warn('localStorage quota exceeded, clearing cache and retrying...')
+        try {
+            localStorage.removeItem('cached_prompts')
+            localStorage.removeItem('cached_categories')
+            localStorage.removeItem('cached_total_sales')
+            localStorage.setItem(key, value)
+        } catch {
+            // Still failing - just skip caching, app continues to work
+            console.warn('localStorage still full after cleanup, skipping cache for:', key)
+        }
+    }
+}
 import type { Prompt } from '../lib/data'
 import { supabase } from '../lib/supabase'
 
@@ -103,7 +122,7 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
             if (error) throw error
             const catNames = (data || []).map(c => c.name)
             setCategories(catNames)
-            localStorage.setItem('cached_categories', JSON.stringify(catNames))
+            safeLocalStorageSet('cached_categories', JSON.stringify(catNames))
         } catch (err) {
             console.error('Error loading categories:', err)
         }
@@ -124,7 +143,7 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
 
             if (!countError && globalSales !== null) {
                 setTotalSystemSales(Number(globalSales))
-                localStorage.setItem('cached_total_sales', globalSales.toString())
+                safeLocalStorageSet('cached_total_sales', globalSales.toString())
             }
 
             // Map Supabase fields to our Prompt interface with extreme resilience
@@ -157,7 +176,7 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
             }
 
             setPrompts(mapped)
-            localStorage.setItem('cached_prompts', JSON.stringify(mapped))
+            safeLocalStorageSet('cached_prompts', JSON.stringify(mapped))
 
             // Isolate Preloading to avoid blocking prompt display
             try {
