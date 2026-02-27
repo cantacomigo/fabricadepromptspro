@@ -25,9 +25,9 @@ export default function OptimizedImage({
     // Generate optimized URLs if it's Unsplash, otherwise use as-is
     const isUnsplash = src.includes('images.unsplash.com')
 
-    // Main image
+    // Main image - Absolute minimal quality for speed
     const mainSrc = isUnsplash
-        ? `${src.split('?')[0]}?w=800&q=75&auto=format&fit=crop`
+        ? `${src.split('?')[0]}?w=400&q=40&auto=format&fit=crop`
         : src
 
     // Low Quality Image Placeholder: tiny, low quality, blurred
@@ -35,11 +35,10 @@ export default function OptimizedImage({
         ? `${src.split('?')[0]}?w=50&q=10&auto=format&fit=crop&blur=10`
         : null
 
-    // Responsive srcset for retina displays (only for Unsplash)
+    // Responsive srcset - simplified to avoid over-fetching
     const srcSet = isUnsplash ? `
-        ${src.split('?')[0]}?w=400&q=70&auto=format&fit=crop 400w,
-        ${src.split('?')[0]}?w=800&q=75&auto=format&fit=crop 800w,
-        ${src.split('?')[0]}?w=1200&q=70&auto=format&fit=crop 1200w
+        ${src.split('?')[0]}?w=400&q=40&auto=format&fit=crop 400w,
+        ${src.split('?')[0]}?w=800&q=45&auto=format&fit=crop 800w
     ` : undefined
 
     // Reset state if src changes
@@ -57,7 +56,7 @@ export default function OptimizedImage({
             background: 'rgba(255,255,255,0.02)',
             ...style
         }}>
-            {/* Blur-up Placeholder (Unsplash only) */}
+            {/* Blur-up Placeholder (Unsplash only) - Instant Display */}
             {!isLoaded && !error && placeholderSrc && (
                 <img
                     src={placeholderSrc}
@@ -77,30 +76,14 @@ export default function OptimizedImage({
                 />
             )}
 
-            {/* Skeleton / Pulse Overlay */}
-            <AnimatePresence>
-                {!isLoaded && !error && (
-                    <motion.div
-                        initial={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        style={{
-                            position: 'absolute',
-                            inset: 0,
-                            zIndex: 2,
-                            background: 'linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.05) 50%, transparent 75%)',
-                            backgroundSize: '200% 100%',
-                        }}
-                        animate={{
-                            backgroundPosition: ['200% 0', '-200% 0'],
-                        }}
-                        transition={{
-                            duration: 1.5,
-                            repeat: Infinity,
-                            ease: "linear"
-                        }}
-                    />
-                )}
-            </AnimatePresence>
+            {/* Skeleton CSS Shimmer */}
+            {!isLoaded && !error && (
+                <div className="shimmer" style={{
+                    position: 'absolute',
+                    inset: 0,
+                    zIndex: 2,
+                }} />
+            )}
 
             {/* Error State */}
             {error && (
@@ -120,28 +103,27 @@ export default function OptimizedImage({
                 </div>
             )}
 
-            {/* Actual Image */}
+            {/* Actual Image - No Framer Motion for instant start */}
             {!error && (
-                <motion.img
+                <img
                     src={mainSrc}
                     srcSet={srcSet}
-                    sizes={isUnsplash ? "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" : undefined}
+                    sizes={isUnsplash ? "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 300px" : undefined}
                     alt={alt}
                     loading={priority ? "eager" : "lazy"}
                     decoding={priority ? "sync" : "async"}
-                    {...(priority ? { fetchpriority: "high" } : {})}
+                    {...(priority ? { "fetchpriority": "high" } : {})}
                     onLoad={() => setIsLoaded(true)}
                     onError={() => setError(true)}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: isLoaded ? 1 : 0 }}
-                    transition={{ duration: 0.3, ease: 'easeOut' }}
                     style={{
                         width: '100%',
                         height: '100%',
                         objectFit,
                         display: 'block',
                         position: 'relative',
-                        zIndex: isLoaded ? 4 : 0
+                        zIndex: isLoaded ? 4 : 0,
+                        opacity: isLoaded ? 1 : 0,
+                        transition: priority ? 'none' : 'opacity 0.2s ease-out'
                     }}
                 />
             )}

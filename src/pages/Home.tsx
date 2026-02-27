@@ -207,61 +207,50 @@ export default function Home() {
                     {search && ` para "${search}"`}
                 </div>
 
-                <AnimatePresence mode="wait">
-                    {loading ? (
-                        <div style={{
+                {loading ? (
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                        gap: 20
+                    }}>
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                            <div key={i} style={{ borderRadius: 16, overflow: 'hidden', background: '#0f0f1a', border: '1px solid rgba(255,255,255,0.07)', height: 400 }}>
+                                <div className="shimmer" style={{ aspectRatio: '4/5', background: 'rgba(255,255,255,0.03)', position: 'relative' }} />
+                                <div style={{ padding: 16 }}>
+                                    <div style={{ height: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 4, width: '70%', marginBottom: 10 }} />
+                                    <div style={{ height: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 4, width: '90%', marginBottom: 6 }} />
+                                    <div style={{ height: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 4, width: '40%' }} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : filtered.length > 0 ? (
+                    <div
+                        key={category + search}
+                        style={{
                             display: 'grid',
                             gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
                             gap: 20
-                        }}>
-                            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                                <div key={i} style={{ borderRadius: 16, overflow: 'hidden', background: '#0f0f1a', border: '1px solid rgba(255,255,255,0.07)', height: 400 }}>
-                                    <div style={{ aspectRatio: '4/5', background: 'rgba(255,255,255,0.03)', position: 'relative' }}>
-                                        <motion.div
-                                            style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.05) 50%, transparent 75%)', backgroundSize: '200% 100%' }}
-                                            animate={{ backgroundPosition: ['200% 0', '-200% 0'] }}
-                                            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                                        />
-                                    </div>
-                                    <div style={{ padding: 16 }}>
-                                        <div style={{ height: 16, background: 'rgba(255,255,255,0.05)', borderRadius: 4, width: '70%', marginBottom: 10 }} />
-                                        <div style={{ height: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 4, width: '90%', marginBottom: 6 }} />
-                                        <div style={{ height: 12, background: 'rgba(255,255,255,0.03)', borderRadius: 4, width: '40%' }} />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : filtered.length > 0 ? (
-                        <motion.div
-                            key={category + search}
-                            variants={staggerChildren}
-                            initial="initial"
-                            animate="animate"
-                            style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                                gap: 20
-                            }}
-                        >
-                            {filtered.map((prompt, index) => (
-                                <PromptCard
-                                    key={prompt.id}
-                                    prompt={prompt}
-                                    onUnlock={handleUnlock}
-                                    isPurchased={hasPurchased(prompt.id)}
-                                    onViewImage={setViewImage}
-                                    priority={index < 8}
-                                />
-                            ))}
-                        </motion.div>
-                    ) : (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: 'center', padding: '80px 20px' }}>
-                            <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
-                            <div style={{ fontSize: 18, fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>Nenhum prompt encontrado</div>
-                            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.3)' }}>Tente outra categoria ou termo de busca</div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                        }}
+                    >
+                        {filtered.map((prompt, index) => (
+                            <PromptCard
+                                key={prompt.id}
+                                prompt={prompt}
+                                onUnlock={handleUnlock}
+                                isPurchased={hasPurchased(prompt.id)}
+                                onViewImage={setViewImage}
+                                priority={index < 4}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <div style={{ textAlign: 'center', padding: '80px 20px' }}>
+                        <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
+                        <div style={{ fontSize: 18, fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>Nenhum prompt encontrado</div>
+                        <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.3)' }}>Tente outra categoria ou termo de busca</div>
+                    </div>
+                )}
             </div>
 
             {/* How it Works Section */}

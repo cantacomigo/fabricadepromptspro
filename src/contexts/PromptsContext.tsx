@@ -148,12 +148,12 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
             setPrompts(mapped)
             localStorage.setItem('cached_prompts', JSON.stringify(mapped))
 
-            // Dynamic Preloading of top 6 images
+            // Dynamic Preloading of top 4 images (viewport only)
             if (mapped.length > 0) {
-                const topImages = mapped.slice(0, 6).map(p => {
+                const topImages = mapped.slice(0, 4).map(p => {
                     const src = p.imageUrl
                     const isUnsplash = src.includes('images.unsplash.com')
-                    return isUnsplash ? `${src.split('?')[0]}?w=400&q=50&auto=format&fit=crop` : src
+                    return isUnsplash ? `${src.split('?')[0]}?w=400&q=40&auto=format&fit=crop` : src
                 })
 
                 topImages.forEach(src => {
