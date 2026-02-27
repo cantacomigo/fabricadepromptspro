@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Star, Flame, Lock, ShoppingCart, Award, Heart, Plus, Check } from 'lucide-react'
+import { Star, Flame, Lock, ShoppingCart, Award, Heart, Plus, Check, ImageIcon } from 'lucide-react'
+import OptimizedImage from '../common/OptimizedImage'
 import type { Prompt } from '../../lib/data'
 import { usePrompts } from '../../contexts/PromptsContext'
 import { useCart } from '../../contexts/CartContext'
@@ -80,19 +81,16 @@ export default function PromptCard({ prompt, onUnlock, isPurchased = false, onVi
                     onViewImage(prompt.imageUrl)
                 }}
             >
-                <motion.img
-                    src={prompt.imageUrl}
-                    alt={prompt.title}
-                    style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        display: 'block',
-                        background: 'rgba(255,255,255,0.02)'
-                    }}
+                <motion.div
                     animate={{ scale: hovered ? 1.06 : 1 }}
                     transition={{ duration: 0.4, ease: 'easeOut' }}
-                />
+                    style={{ width: '100%', height: '100%' }}
+                >
+                    <OptimizedImage
+                        src={prompt.imageUrl}
+                        alt={prompt.title}
+                    />
+                </motion.div>
 
                 {/* Overlay gradient */}
                 <div style={{
@@ -204,7 +202,7 @@ export default function PromptCard({ prompt, onUnlock, isPurchased = false, onVi
                         </div>
                     </div>
                     <motion.button
-                        onClick={(e) => {
+                        onClick={(e: any) => {
                             e.stopPropagation()
                             if (isPurchased) {
                                 onUnlock(prompt)
