@@ -39,7 +39,11 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         Promise.all([fetchPrompts(), fetchCategories(), fetchUserLikes()])
-            .finally(() => setLoading(false))
+            .finally(async () => {
+                // Buffer to ensure state is settled before hiding loading
+                await new Promise(r => setTimeout(r, 200))
+                setLoading(false)
+            })
     }, [])
 
     // Realtime subscription for likes_count auto-updates
@@ -123,50 +127,76 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
                 localStorage.setItem('cached_total_sales', globalSales.toString())
             }
 
-            // Map Supabase fields to our Prompt interface
-            // Filter out VIP subscription prompt from gallery
+            // Map Supabase fields to our Prompt interface with extreme resilience
             const VIP_PROMPT_ID = '00000000-0000-0000-0000-000000000001'
-            const mapped: Prompt[] = (data || [])
-                .filter(p => p.id !== VIP_PROMPT_ID)
-                .map(p => ({
-                    id: p.id,
-                    title: p.title,
-                    description: p.description,
-                    prompt: p.prompt_text,
-                    price: p.price,
-                    category: p.category,
-                    imageUrl: p.image_url,
-                    tags: p.tags || [],
-                    salesCount: p.sales_count,
-                    likesCount: p.likes_count || 0,
-                    rating: Number(p.rating),
-                    ratingCount: 0,
-                    createdAt: new Date(p.created_at).getTime(),
-                    instructions: p.instructions
-                }))
+            const rawData = data || []
+            const mapped: Prompt[] = []
+
+            for (const p of rawData) {
+                if (p.id === VIP_PROMPT_ID) continue
+                try {
+                    mapped.push({
+                        id: String(p.id || ''),
+                        title: String(p.title || 'Sem título'),
+                        description: String(p.description || ''),
+                        prompt: String(p.prompt_text || ''),
+                        price: Number(p.price || 0),
+                        category: String(p.category || 'Geral'),
+                        imageUrl: String(p.image_url || ''),
+                        tags: Array.isArray(p.tags) ? p.tags : [],
+                        salesCount: Number(p.sales_count || 0),
+                        likesCount: Number(p.likes_count || 0),
+                        rating: Number(p.rating || 0),
+                        ratingCount: 0,
+                        createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
+                        instructions: String(p.instructions || '')
+                    })
+                } catch (mapErr) {
+                    console.error('Error mapping prompt:', p.id, mapErr)
+                }
+            }
 
             setPrompts(mapped)
             localStorage.setItem('cached_prompts', JSON.stringify(mapped))
 
-            // Dynamic Preloading of top 4 images (viewport only)
-            if (mapped.length > 0) {
-                const topImages = mapped.slice(0, 4).map(p => {
-                    const src = p.imageUrl
-                    const isUnsplash = src.includes('images.unsplash.com')
-                    return isUnsplash ? `${src.split('?')[0]}?w=400&q=40&auto=format&fit=crop` : src
-                })
+            // Isolate Preloading to avoid blocking prompt display
+            try {
+                if (mapped.length > 0) {
+                    const topImages = mapped.slice(0, 4).map(p => {
+                        const src = p.imageUrl || ''
+                        if (!src) return null
+                        const isUnsplash = src.includes('images.unsplash.com')
+                        return isUnsplash ? `${src.split('?')[0]}?w=400&q=40&auto=format&fit=crop` : src
+                    }).filter(Boolean) as string[]
 
-                topImages.forEach(src => {
-                    if (!document.querySelector(`link[href="${src}"]`)) {
-                        const link = document.createElement('link')
-                        link.rel = 'preload'
-                        link.as = 'image'
-                        link.href = src
-                        // @ts-ignore
-                        link.fetchpriority = 'high'
-                        document.head.appendChild(link)
-                    }
-                })
+                    topImages.forEach(src => {
+                        try {
+                            // Use a more resilient check that doesn't crash on special chars
+                            const links = document.getElementsByTagName('link')
+                            let exists = false
+                            for (let i = 0; i < links.length; i++) {
+                                if (links[i].href === src && links[i].rel === 'preload') {
+                                    exists = true
+                                    break
+                                }
+                            }
+
+                            if (!exists) {
+                                const link = document.createElement('link')
+                                link.rel = 'preload'
+                                link.as = 'image'
+                                link.href = src
+                                // @ts-ignore
+                                link.fetchpriority = 'high'
+                                document.head.appendChild(link)
+                            }
+                        } catch (linkErr) {
+                            console.warn('Could not inject preload link:', src, linkErr)
+                        }
+                    })
+                }
+            } catch (preloadErr) {
+                console.error('Non-critical error in preloading logic:', preloadErr)
             }
         } catch (err) {
             console.error('Error loading prompts from Supabase:', err)
