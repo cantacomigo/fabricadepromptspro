@@ -146,8 +146,7 @@ export default function PromptRevealModal({ prompt, purchaseId: _pid, onClose }:
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                     {[
                                         { n: '1', icon: '📋', text: <span>Copie o <b style={{ color: 'white' }}>Prompt deste Pack</b> <span style={{ color: '#ef4444' }}>(copie o prompt inteiro! Não pode faltar nada)</span></span> },
-                                        { n: '2', icon: '🤳', text: <span>Bata uma <b style={{ color: 'white' }}>foto do seu rosto</b></span> },
-                                        { n: '3', icon: '🚀', text: <span>Cole o prompt e <b style={{ color: 'white' }}>envie junto com a sua foto</b></span> },
+                                        { n: '2', icon: '🚀', text: <span>Cole o prompt e <b style={{ color: 'white' }}>envie junto com a sua foto</b></span> },
                                     ].map(step => (
                                         <div key={step.n} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                                             <div style={{
