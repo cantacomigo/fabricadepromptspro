@@ -58,7 +58,11 @@ export default function ImageLightbox({ imageUrl, onClose }: Props) {
                         }}
                     >
                         <img
-                            src={imageUrl}
+                            src={
+                                imageUrl.includes('supabase.co/storage')
+                                    ? imageUrl.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/').split('?')[0] + '?width=1200&quality=90'
+                                    : imageUrl
+                            }
                             alt="Visualização"
                             style={{
                                 maxWidth: '100vw',
