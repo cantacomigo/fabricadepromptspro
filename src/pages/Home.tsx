@@ -220,13 +220,14 @@ export default function Home() {
                                 gap: 20
                             }}
                         >
-                            {filtered.map(prompt => (
+                            {filtered.map((prompt, index) => (
                                 <PromptCard
                                     key={prompt.id}
                                     prompt={prompt}
                                     onUnlock={handleUnlock}
                                     isPurchased={hasPurchased(prompt.id)}
                                     onViewImage={setViewImage}
+                                    priority={index < 8}
                                 />
                             ))}
                         </motion.div>

@@ -11,9 +11,10 @@ interface Props {
     onUnlock: (prompt: Prompt) => void
     isPurchased?: boolean
     onViewImage: (url: string) => void
+    priority?: boolean
 }
 
-export default function PromptCard({ prompt, onUnlock, isPurchased = false, onViewImage }: Props) {
+export default function PromptCard({ prompt, onUnlock, isPurchased = false, onViewImage, priority = false }: Props) {
     const { toggleLike, userLikes } = usePrompts()
     const { addToCart, isInCart, setCartOpen } = useCart()
     const [hovered, setHovered] = useState(false)
@@ -89,6 +90,7 @@ export default function PromptCard({ prompt, onUnlock, isPurchased = false, onVi
                     <OptimizedImage
                         src={prompt.imageUrl}
                         alt={prompt.title}
+                        priority={priority}
                     />
                 </motion.div>
 
