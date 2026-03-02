@@ -67,11 +67,16 @@ export default function OptimizedImage({
         ].join(', ')
     }
 
-    // Reset state when src changes
+    const [currentSrc, setCurrentSrc] = useState(mainSrc)
+    const [currentSrcSet, setCurrentSrcSet] = useState(srcSet)
+
+    // Reset and recalculate when prop src changes
     useEffect(() => {
         setIsLoaded(false)
         setHasError(false)
-    }, [src])
+        setCurrentSrc(mainSrc)
+        setCurrentSrcSet(srcSet)
+    }, [src, mainSrc, srcSet])
 
     // Check if already cached on mount
     useEffect(() => {
@@ -84,7 +89,7 @@ export default function OptimizedImage({
         // Safety fallback after 6s — never leave the user staring at black
         const fallback = setTimeout(() => setIsLoaded(true), 6000)
         return () => clearTimeout(fallback)
-    }, [src])
+    }, [currentSrc])
 
     return (
         <div style={{
@@ -139,8 +144,8 @@ export default function OptimizedImage({
             {!hasError && (
                 <img
                     ref={imgRef}
-                    src={mainSrc}
-                    srcSet={srcSet}
+                    src={currentSrc}
+                    srcSet={currentSrcSet}
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 300px"
                     alt={alt}
                     loading="eager"
@@ -148,9 +153,14 @@ export default function OptimizedImage({
                     fetchPriority={priority ? "high" : "auto"}
                     onLoad={() => setIsLoaded(true)}
                     onError={() => {
-                        // If transform URL fails, try original URL as fallback
-                        if (isSupabase && imgRef.current && imgRef.current.src !== src) {
-                            imgRef.current.src = src
+                        // If transform URL fails (Pro feature only), try original URL as fallback
+                        if (isSupabase && currentSrc !== src) {
+                            console.warn('Supabase transform failed, falling back to original URL')
+                            setCurrentSrc(src)
+                            setCurrentSrcSet(undefined)
+                        } else if (src.startsWith('data:')) {
+                            console.error('Base64 image load failed')
+                            setHasError(true)
                         } else {
                             setHasError(true)
                         }
