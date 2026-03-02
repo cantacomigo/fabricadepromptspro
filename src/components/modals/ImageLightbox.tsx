@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ZoomIn } from 'lucide-react'
 
@@ -7,6 +8,18 @@ interface Props {
 }
 
 export default function ImageLightbox({ imageUrl, onClose }: Props) {
+    const isSupabase = imageUrl?.includes('supabase.co/storage')
+    const transformedUrl = isSupabase
+        ? imageUrl!.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/').split('?')[0] + '?width=1200&quality=90'
+        : imageUrl
+
+    const [currentSrc, setCurrentSrc] = [undefined, undefined] as any // Placeholder for destructuring later if needed, but we'll use simple state
+    const [src, setSrc] = useState(transformedUrl)
+
+    useEffect(() => {
+        setSrc(transformedUrl)
+    }, [transformedUrl])
+
     return (
         <AnimatePresence>
             {imageUrl && (
@@ -58,12 +71,14 @@ export default function ImageLightbox({ imageUrl, onClose }: Props) {
                         }}
                     >
                         <img
-                            src={
-                                imageUrl.includes('supabase.co/storage')
-                                    ? imageUrl.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/').split('?')[0] + '?width=1200&quality=90'
-                                    : imageUrl
-                            }
+                            src={src || ''}
                             alt="Visualização"
+                            onError={() => {
+                                if (isSupabase && src !== imageUrl) {
+                                    console.warn('Lightbox transform failed, falling back to original')
+                                    setSrc(imageUrl)
+                                }
+                            }}
                             style={{
                                 maxWidth: '100vw',
                                 maxHeight: '90vh',

@@ -16,7 +16,7 @@ import type { Prompt } from '../lib/data'
 import { useNavigate } from 'react-router-dom'
 
 export default function Home() {
-    const { prompts, categories, incrementSales, totalSystemSales, refreshPrompts, loading } = usePrompts()
+    const { prompts, categories, incrementSales, totalSystemSales, refreshPrompts, getPromptContent, loading } = usePrompts()
     const { hasPurchased, confirmPurchase } = useAuth()
     const { cartItems, setCartOpen, clearCart } = useCart()
     const navigate = useNavigate()
@@ -30,6 +30,7 @@ export default function Home() {
     const [lastPurchaseId, setLastPurchaseId] = useState<string | null>(null)
     const [viewImage, setViewImage] = useState<string | null>(null)
     const [isCartCheckout, setIsCartCheckout] = useState(false)
+    const [isContentLoading, setIsContentLoading] = useState(false)
 
     // Handle initial scroll to hash
     useEffect(() => {
@@ -65,13 +66,26 @@ export default function Home() {
         ? (prompts.reduce((a, p) => a + p.rating, 0) / prompts.length).toFixed(1)
         : '0.0'
 
-    const handleUnlock = (prompt: Prompt) => {
-        if (hasPurchased(prompt.id)) {
-            setViewingPrompt(prompt)
-            return
+    const handleUnlock = async (prompt: Prompt) => {
+        try {
+            setIsContentLoading(true)
+            // Ensure we have the full content (tags, prompt_text)
+            if (!prompt.prompt || prompt.tags.length === 0) {
+                await getPromptContent(prompt.id)
+            }
+
+            if (hasPurchased(prompt.id)) {
+                setViewingPrompt(prompt)
+                return
+            }
+            setSelected(prompt)
+            setShowPix(false)
+        } catch (err) {
+            console.error('Failed to load prompt content:', err)
+            alert('Erro ao carregar detalhes do prompt. Por favor, tente novamente.')
+        } finally {
+            setIsContentLoading(false)
         }
-        setSelected(prompt)
-        setShowPix(false)
     }
 
     const handleCartCheckout = async () => {
