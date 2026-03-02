@@ -37,6 +37,8 @@ interface PromptsContextType {
     deleteCategory: (name: string) => Promise<void>
     refreshPrompts: () => Promise<void>
     getPromptContent: (id: string) => Promise<Partial<Prompt>>
+    uploadImage: (file: File | string) => Promise<string>
+    migrateImagesToStorage: () => Promise<{ total: number; migrated: number; errors: number }>
 }
 
 const PromptsContext = createContext<PromptsContextType | null>(null)
@@ -435,6 +437,60 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
+    const uploadImage = async (file: File | string): Promise<string> => {
+        try {
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.jpg`
+            const filePath = `prompts/${fileName}`
+
+            let body: any = file
+            let contentType = 'image/jpeg'
+
+            if (typeof file === 'string' && file.startsWith('data:')) {
+                const res = await fetch(file)
+                body = await res.blob()
+                contentType = file.split(';')[0].split(':')[1] || 'image/jpeg'
+            }
+
+            const { error } = await supabase.storage
+                .from('prompts')
+                .upload(filePath, body, {
+                    contentType,
+                    cacheControl: '3600',
+                    upsert: true
+                })
+
+            if (error) throw error
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('prompts')
+                .getPublicUrl(filePath)
+
+            return publicUrl
+        } catch (err) {
+            console.error('Error uploading image:', err)
+            throw err
+        }
+    }
+
+    const migrateImagesToStorage = async () => {
+        const toMigrate = prompts.filter(p => p.imageUrl && p.imageUrl.startsWith('data:'))
+        let migrated = 0
+        let errors = 0
+
+        for (const prompt of toMigrate) {
+            try {
+                const publicUrl = await uploadImage(prompt.imageUrl)
+                await updatePrompt(prompt.id, { imageUrl: publicUrl })
+                migrated++
+            } catch (err) {
+                console.error(`Failed to migrate prompt ${prompt.id}:`, err)
+                errors++
+            }
+        }
+
+        return { total: toMigrate.length, migrated, errors }
+    }
+
     return (
         <PromptsContext.Provider value={{
             prompts, categories, loading,
@@ -444,7 +500,9 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
             addCategory,
             deleteCategory,
             refreshPrompts: fetchPrompts,
-            getPromptContent
+            getPromptContent,
+            uploadImage,
+            migrateImagesToStorage
         }}>
             {children}
         </PromptsContext.Provider>

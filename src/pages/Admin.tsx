@@ -8,9 +8,12 @@ import type { Prompt } from '../lib/data'
 type Tab = 'add' | 'manage' | 'categories' | 'sales' | 'settings'
 
 export default function Admin() {
-    const { prompts, categories, addPrompt, updatePrompt, deletePrompt, addCategory, deleteCategory } = usePrompts()
+    const { prompts, categories, addPrompt, updatePrompt, deletePrompt, addCategory, deleteCategory, uploadImage, migrateImagesToStorage } = usePrompts()
     const { purchases, confirmPurchase, user, updateProfile, updatePassword } = useAuth()
     const [tab, setTab] = useState<Tab>('add')
+    const [isMigrating, setIsMigrating] = useState(false)
+    const [migrationResult, setMigrationResult] = useState<{ total: number, migrated: number, errors: number } | null>(null)
+    const [uploading, setUploading] = useState(false)
 
     // Settings state
     const [newName, setNewName] = useState(user?.displayName || '')
@@ -107,15 +110,34 @@ export default function Admin() {
         setTimeout(() => { setSaved(false); resetForm() }, 1500)
     }
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
 
-        const reader = new FileReader()
-        reader.onloadend = () => {
-            setForm(prev => ({ ...prev, imageUrl: reader.result as string }))
+        setUploading(true)
+        try {
+            const publicUrl = await uploadImage(file)
+            setForm(prev => ({ ...prev, imageUrl: publicUrl }))
+        } catch (err) {
+            console.error('Upload failed:', err)
+            alert('Falha no upload da imagem. Certifique-se de que o bucket "prompts" existe no Supabase.')
+        } finally {
+            setUploading(false)
         }
-        reader.readAsDataURL(file)
+    }
+
+    const handleMigration = async () => {
+        if (!confirm('Isso irá mover todas as imagens em base64 do banco de dados para o Supabase Storage. Deseja continuar?')) return
+        setIsMigrating(true)
+        setMigrationResult(null)
+        try {
+            const result = await migrateImagesToStorage()
+            setMigrationResult(result)
+        } catch (err) {
+            console.error('Migration failed:', err)
+        } finally {
+            setIsMigrating(false)
+        }
     }
 
     const handleConfirm = (purchaseId: string) => {
@@ -239,7 +261,7 @@ export default function Admin() {
                                                 style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 2 }}
                                             />
                                             <div style={{ ...inputSt, textAlign: 'center', pointerEvents: 'none', borderStyle: 'dashed', borderColor: 'rgba(147,51,234,0.4)', background: 'rgba(147,51,234,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                                                <Upload size={14} /> Upload Arquivo
+                                                {uploading ? 'Enviando...' : <><Upload size={14} /> Upload Arquivo</>}
                                             </div>
                                         </div>
                                         <input type="url" value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })}
@@ -493,6 +515,37 @@ export default function Admin() {
                                     </motion.button>
                                 </div>
                             </form>
+                        </div>
+                        <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '32px 0' }} />
+
+                        <div style={{ padding: '20px', borderRadius: 12, background: 'rgba(147,51,234,0.1)', border: '1px solid rgba(147,51,234,0.2)' }}>
+                            <h3 style={{ fontSize: 14, fontWeight: 700, color: 'white', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                🚀 Otimização de Imagens
+                            </h3>
+                            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', margin: '0 0 16px' }}>
+                                Migre as imagens atuais do banco de dados para o Storage para um carregamento instantâneo.
+                            </p>
+
+                            {migrationResult ? (
+                                <div style={{ fontSize: 13, color: '#10b981', marginBottom: 16, padding: '10px', borderRadius: 8, background: 'rgba(16,185,129,0.1)' }}>
+                                    ✅ Migração concluída: {migrationResult.migrated} de {migrationResult.total} imagens processadas.
+                                    {migrationResult.errors > 0 && ` (${migrationResult.errors} erros)`}
+                                </div>
+                            ) : null}
+
+                            <motion.button
+                                onClick={handleMigration}
+                                disabled={isMigrating}
+                                style={{
+                                    width: '100%', padding: '12px', borderRadius: 10,
+                                    background: isMigrating ? 'rgba(255,255,255,0.1)' : '#9333ea',
+                                    color: 'white', fontSize: 14, fontWeight: 700, border: 'none',
+                                    cursor: isMigrating ? 'not-allowed' : 'pointer'
+                                }}
+                                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                            >
+                                {isMigrating ? 'Migrando...' : 'Iniciar Migração para Storage'}
+                            </motion.button>
                         </div>
                     </motion.div>
                 )}
