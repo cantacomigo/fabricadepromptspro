@@ -182,30 +182,34 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
                 }))
             }
 
-            // PASS 3: Image URLs in PARALLEL chunks (Faster throughput)
+            // PASS 3: Image URLs in RESILIENT chunks (Prevent 500 errors)
             const promptIds = initialMapped.map(p => p.id)
-            const chunkSize = 3 // Slightly larger chunks for parallel requests
+            const chunkSize = 1 // Ultimate fallback for hyper-heavy base64 images
             const chunks = []
             for (let i = 0; i < promptIds.length; i += chunkSize) {
                 chunks.push(promptIds.slice(i, i + chunkSize))
             }
 
-            // Fetch all chunks in parallel
+            // Fetch all chunks in parallel but handle individual failures
             await Promise.all(chunks.map(async (chunk) => {
-                const { data: imgData, error: imgError } = await supabase
-                    .from('prompts')
-                    .select('id, image_url')
-                    .in('id', chunk)
+                try {
+                    const { data: imgData, error: imgError } = await supabase
+                        .from('prompts')
+                        .select('id, image_url')
+                        .in('id', chunk)
 
-                if (!imgError && imgData) {
-                    setPrompts(prev => {
-                        const next = prev.map(p => {
-                            const found = imgData.find(img => img.id === p.id)
-                            return found ? { ...p, imageUrl: found.image_url || '' } : p
+                    if (!imgError && imgData) {
+                        setPrompts(prev => {
+                            const next = prev.map(p => {
+                                const found = imgData.find(img => img.id === p.id)
+                                return found ? { ...p, imageUrl: found.image_url || '' } : p
+                            })
+                            safeLocalStorageSet('cached_prompts', JSON.stringify(next))
+                            return next
                         })
-                        safeLocalStorageSet('cached_prompts', JSON.stringify(next))
-                        return next
-                    })
+                    }
+                } catch (chunkErr) {
+                    console.warn(`Failed to fetch image chunk ${chunk.join(',')}:`, chunkErr)
                 }
             }))
 
