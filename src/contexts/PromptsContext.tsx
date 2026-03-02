@@ -36,6 +36,7 @@ interface PromptsContextType {
     addCategory: (name: string) => Promise<void>
     deleteCategory: (name: string) => Promise<void>
     refreshPrompts: () => Promise<void>
+    getPromptContent: (id: string) => Promise<Partial<Prompt>>
 }
 
 const PromptsContext = createContext<PromptsContextType | null>(null)
@@ -130,103 +131,120 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
 
     async function fetchPrompts() {
         try {
-            const { data, error } = await supabase
+            setLoading(true)
+            // PASS 1: All metadata ONLY (strictly minimal)
+            const { data: metadata, error: metaError } = await supabase
                 .from('prompts')
-                .select('*')
+                .select('id, title, description, price, category, created_at')
                 .order('created_at', { ascending: false })
 
-            if (error) throw error
+            if (metaError) throw metaError
 
-            // Fetch total confirmed sales using the new secure RPC
-            const { data: globalSales, error: countError } = await supabase
-                .rpc('get_total_confirmed_sales')
+            // Map initial data immediately (without images or heavy text)
+            const initialMapped: Prompt[] = (metadata || []).map(p => ({
+                id: String(p.id || ''),
+                title: String(p.title || 'Sem título'),
+                description: String(p.description || ''),
+                price: Number(p.price || 0),
+                category: String(p.category || 'Geral'),
+                imageUrl: '', // Deferred
+                salesCount: 0,
+                likesCount: 0,
+                rating: 0,
+                ratingCount: 0,
+                createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
+                tags: [],
+                instructions: '',
+                prompt: ''
+            }))
 
-            if (!countError && globalSales !== null) {
-                setTotalSystemSales(Number(globalSales))
-                safeLocalStorageSet('cached_total_sales', globalSales.toString())
-            }
+            setPrompts(initialMapped)
+            setLoading(false)
 
-            // Map Supabase fields to our Prompt interface with extreme resilience
-            const VIP_PROMPT_ID = '00000000-0000-0000-0000-000000000001'
-            const rawData = data || []
-            const mapped: Prompt[] = []
+            // PASS 2: Stats (Lightweight)
+            const { data: stats, error: statsError } = await supabase
+                .from('prompts')
+                .select('id, sales_count, likes_count, rating, tags')
 
-            for (const p of rawData) {
-                if (p.id === VIP_PROMPT_ID) continue
-                try {
-                    mapped.push({
-                        id: String(p.id || ''),
-                        title: String(p.title || 'Sem título'),
-                        description: String(p.description || ''),
-                        prompt: String(p.prompt_text || ''),
-                        price: Number(p.price || 0),
-                        category: String(p.category || 'Geral'),
-                        imageUrl: String(p.image_url || ''),
-                        tags: Array.isArray(p.tags) ? p.tags : [],
-                        salesCount: Number(p.sales_count || 0),
-                        likesCount: Number(p.likes_count || 0),
-                        rating: Number(p.rating || 0),
-                        ratingCount: 0,
-                        createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
-                        instructions: String(p.instructions || '')
-                    })
-                } catch (mapErr) {
-                    console.error('Error mapping prompt:', p.id, mapErr)
-                }
-            }
-
-            setPrompts(mapped)
-            safeLocalStorageSet('cached_prompts', JSON.stringify(mapped))
-
-            // Isolate Preloading to avoid blocking prompt display
-            try {
-                if (mapped.length > 0) {
-                    const topImages = mapped.slice(0, 4).map(p => {
-                        const src = p.imageUrl || ''
-                        if (!src) return null
-                        const isUnsplash = src.includes('images.unsplash.com')
-                        return isUnsplash ? `${src.split('?')[0]}?w=500&q=60&auto=format&fit=crop` : src
-                    }).filter(Boolean) as string[]
-
-                    topImages.forEach(src => {
-                        try {
-                            // Use a more resilient check that doesn't crash on special chars
-                            const links = document.getElementsByTagName('link')
-                            let exists = false
-                            for (let i = 0; i < links.length; i++) {
-                                if (links[i].href === src && links[i].rel === 'preload') {
-                                    exists = true
-                                    break
-                                }
-                            }
-
-                            if (!exists) {
-                                const link = document.createElement('link')
-                                link.rel = 'preload'
-                                link.as = 'image'
-                                link.href = src
-                                // @ts-ignore
-                                link.fetchpriority = 'high'
-                                document.head.appendChild(link)
-                            }
-                        } catch (linkErr) {
-                            console.warn('Could not inject preload link:', src, linkErr)
+            if (!statsError && stats) {
+                setPrompts(prev => prev.map(p => {
+                    const s = stats.find(item => item.id === p.id)
+                    if (s) {
+                        return {
+                            ...p,
+                            salesCount: Number(s.sales_count || 0),
+                            likesCount: Number(s.likes_count || 0),
+                            rating: Number(s.rating || 0),
+                            tags: Array.isArray(s.tags) ? s.tags : []
                         }
+                    }
+                    return p
+                }))
+            }
+
+            // PASS 3: Image URLs in small chunks (Batching the 90MB elephant)
+            const promptIds = initialMapped.map(p => p.id)
+            const chunkSize = 2 // Ultra-small chunks for high-res image URLs
+            for (let i = 0; i < promptIds.length; i += chunkSize) {
+                const chunk = promptIds.slice(i, i + chunkSize)
+                const { data: imgData, error: imgError } = await supabase
+                    .from('prompts')
+                    .select('id, image_url')
+                    .in('id', chunk)
+
+                if (!imgError && imgData) {
+                    setPrompts(prev => {
+                        const next = prev.map(p => {
+                            const found = imgData.find(img => img.id === p.id)
+                            return found ? { ...p, imageUrl: found.image_url || '' } : p
+                        })
+                        safeLocalStorageSet('cached_prompts', JSON.stringify(next))
+                        return next
                     })
                 }
+            }
+
+            // Fetch total confirmed sales in isolation
+            try {
+                const { data: globalSales, error: countError } = await supabase
+                    .rpc('get_total_confirmed_sales')
+
+                if (!countError && globalSales !== null) {
+                    setTotalSystemSales(Number(globalSales))
+                    safeLocalStorageSet('cached_total_sales', globalSales.toString())
+                }
+            } catch (err) {
+                console.warn('Non-critical: Global sales fetch failed')
+            }
+
+            // Preloading logic
+            try {
+                const topImages = initialMapped.slice(0, 4).map(p => {
+                    const src = p.imageUrl || ''
+                    if (!src) return null
+                    const isUnsplash = src.includes('images.unsplash.com')
+                    return isUnsplash ? `${src.split('?')[0]}?w=500&q=60&auto=format&fit=crop` : src
+                }).filter(Boolean) as string[]
+
+                topImages.forEach(src => {
+                    const link = document.createElement('link')
+                    link.rel = 'preload'
+                    link.as = 'image'
+                    link.href = src
+                    // @ts-ignore
+                    link.fetchpriority = 'high'
+                    document.head.appendChild(link)
+                })
             } catch (preloadErr) {
-                console.error('Non-critical error in preloading logic:', preloadErr)
+                console.warn('Preloading failed:', preloadErr)
             }
         } catch (err) {
             console.error('Error loading prompts from Supabase:', err)
-            // Log specific error details if available
-            if (err && typeof err === 'object' && 'message' in err) {
-                console.error('Supabase Error Message:', err.message)
-            }
         } finally {
             setLoading(false)
         }
     }
+
 
     const addPrompt = async (data: Omit<Prompt, 'id' | 'salesCount' | 'rating' | 'ratingCount' | 'createdAt'>) => {
         const { data: inserted, error } = await supabase
@@ -382,6 +400,38 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
+    const getPromptContent = async (id: string): Promise<Partial<Prompt>> => {
+        try {
+            console.log(`Lazy loading content for prompt: ${id}`)
+            const { data, error } = await supabase
+                .from('prompts')
+                .select('prompt_text, tags, instructions')
+                .eq('id', id)
+                .single()
+
+            if (error) throw error
+
+            if (data) {
+                const updates = {
+                    prompt: String(data.prompt_text || ''),
+                    tags: Array.isArray(data.tags) ? data.tags : [],
+                    instructions: String(data.instructions || '')
+                }
+
+                // Update local state so we don't fetch again
+                setPrompts(prev => prev.map(p =>
+                    p.id === id ? { ...p, ...updates } : p
+                ))
+
+                return updates
+            }
+            return {}
+        } catch (err) {
+            console.error('Error lazy loading prompt content:', err)
+            throw err
+        }
+    }
+
     return (
         <PromptsContext.Provider value={{
             prompts, categories, loading,
@@ -390,7 +440,8 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
             userLikes,
             addCategory,
             deleteCategory,
-            refreshPrompts: fetchPrompts
+            refreshPrompts: fetchPrompts,
+            getPromptContent
         }}>
             {children}
         </PromptsContext.Provider>
