@@ -132,10 +132,10 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
     async function fetchPrompts() {
         try {
             setLoading(true)
-            // PASS 1: All metadata ONLY (strictly minimal)
+            // PASS 1: All text content (Still lightweight, avoids timeouts)
             const { data: metadata, error: metaError } = await supabase
                 .from('prompts')
-                .select('id, title, description, price, category, created_at')
+                .select('id, title, description, price, category, created_at, prompt_text, instructions, tags')
                 .order('created_at', { ascending: false })
 
             if (metaError) throw metaError
@@ -153,18 +153,17 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
                 rating: 0,
                 ratingCount: 0,
                 createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
-                tags: [],
-                instructions: '',
-                prompt: ''
+                tags: Array.isArray(p.tags) ? p.tags : [],
+                instructions: p.instructions || '',
+                prompt: p.prompt_text || ''
             }))
 
             setPrompts(initialMapped)
             setLoading(false)
 
-            // PASS 2: Stats (Lightweight)
             const { data: stats, error: statsError } = await supabase
                 .from('prompts')
-                .select('id, sales_count, likes_count, rating, tags')
+                .select('id, sales_count, likes_count, rating')
 
             if (!statsError && stats) {
                 setPrompts(prev => prev.map(p => {
@@ -174,19 +173,23 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
                             ...p,
                             salesCount: Number(s.sales_count || 0),
                             likesCount: Number(s.likes_count || 0),
-                            rating: Number(s.rating || 0),
-                            tags: Array.isArray(s.tags) ? s.tags : []
+                            rating: Number(s.rating || 0)
                         }
                     }
                     return p
                 }))
             }
 
-            // PASS 3: Image URLs in small chunks (Batching the 90MB elephant)
+            // PASS 3: Image URLs in PARALLEL chunks (Faster throughput)
             const promptIds = initialMapped.map(p => p.id)
-            const chunkSize = 2 // Ultra-small chunks for high-res image URLs
+            const chunkSize = 3 // Slightly larger chunks for parallel requests
+            const chunks = []
             for (let i = 0; i < promptIds.length; i += chunkSize) {
-                const chunk = promptIds.slice(i, i + chunkSize)
+                chunks.push(promptIds.slice(i, i + chunkSize))
+            }
+
+            // Fetch all chunks in parallel
+            await Promise.all(chunks.map(async (chunk) => {
                 const { data: imgData, error: imgError } = await supabase
                     .from('prompts')
                     .select('id, image_url')
@@ -202,7 +205,7 @@ export function PromptsProvider({ children }: { children: React.ReactNode }) {
                         return next
                     })
                 }
-            }
+            }))
 
             // Fetch total confirmed sales in isolation
             try {
